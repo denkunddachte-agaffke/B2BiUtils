@@ -9,3 +9,6 @@ Please report issues in [issues](https://github.com/denkunddachte-agaffke/B2BiUt
 ## APIs
 
 ## Utilities
+### b2bWorkflowMgr.sh
+* support execute BP for IIM installation without custom API WS.
+* 
