@@ -371,5 +371,22 @@
       "</operation>",
     ],
     "description": "BPML set primary document from ID"
+   },
+   "BPML LockService": {
+    "prefix": "bpLockService",
+    "body": [
+      "<operation name=\"${1:CHECK}\">",
+      "  <participant name=\"LockService\"/>",
+      "  <output message=\"LockServiceTypeInputMessage\">",
+      "    <assign to=\"ACTION\">${1:CHECK}</assign>",
+      "    <assign to=\"LOCK_KEY\" from=\"${2:lockname}\" />",
+      "    <assign to=\"USER\">admin</assign>",
+      "  </output>",
+      "  <input message=\"inmsg\">",
+      "    <assign to=\"TMP_STEP/LOCK_EXIST\" from=\"boolean(LOCK_EXIST)\" />",
+      "  </input>",
+      "</operation>",
+    ],
+    "description": "BPML manipulate locks"
   },
 }
