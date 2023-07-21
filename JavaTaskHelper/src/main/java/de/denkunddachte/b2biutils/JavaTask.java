@@ -61,8 +61,8 @@ import java.util.stream.Collectors;
  */
 public final class JavaTask {
   // If you want to use JDBCService, provide info, if not, leave JDBC_URL empty.
-  private static final String        JDBC_POOL     = "mssqlPool";
-  private static final String        JDBC_DRIVER   = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+  private static final String JDBC_POOL   = "mssqlPool";
+  private static final String JDBC_DRIVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
   private static final String        JDBC_URL      = "jdbc:sqlserver://dbhost:1433;databaseName=SFGDEV1DB;SelectMethod=cursor;sslProtocol=TLSv1.2;trustServerCertificate=true";
   private static final String        JDBC_USER     = "sfgdev1user";
   private static final String        JDBC_PASSWORD = "GehHeim!";
@@ -86,7 +86,7 @@ public final class JavaTask {
    * @return String ("OK")
    * @throws Exception
    */
-  public static String testJavaTaskSample(String... args) throws Exception {
+  public static String testJavaTaskSample(final String... args) throws Exception {
     // Embedded ProcessData to use for this test (alternatively use -p <file> to provide your own):
     // <ProcessData>
     // <InputNumberValueOne>1</InputNumberValueOne>
@@ -180,7 +180,7 @@ public final class JavaTask {
     Encoder      enc    = Base64.getEncoder();
     Document     doc    = wfc.getPrimaryDocument();
     Document     newDoc = new Document();
-    InputStream  is     = doc.getBodyInputStream();
+    InputStream is     = doc.getBodyInputStream();
     OutputStream os     = enc.wrap(newDoc.getOutputStream());
     byte[]       buf    = new byte[1024];
     int          b;
@@ -193,7 +193,7 @@ public final class JavaTask {
     return "OK";
   }
 
-  public static void main(String[] args) {
+  public static void main(final String[] args) {
     // WorkFlowContext asiWfc = new WorkFlowContext(171753);
 
     if (args.length == 0)
