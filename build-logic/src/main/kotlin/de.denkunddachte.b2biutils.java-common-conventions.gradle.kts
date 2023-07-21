@@ -69,3 +69,29 @@ tasks.processResources {
     )
 }
 
+checkstyle {
+    version = "10.12.1"
+    configFile = file("${rootProject.projectDir}/config/checkstyle/checkstyle.xml")
+}
+
+spotbugs {
+    ignoreFailures.set(true)
+    showStackTraces.set(true)
+    showProgress.set(true)
+    effort.set(com.github.spotbugs.snom.Effort.DEFAULT)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.DEFAULT)
+    visitors.set(listOf("FindSqlInjection", "SwitchFallthrough"))
+    omitVisitors.set(listOf("FindNonShortCircuit"))
+    reportsDir.set(file("$buildDir/spotbugs"))
+    /*
+    includeFilter.set(file("include.xml"))
+    excludeFilter.set(file("exclude.xml"))
+    baselineFile.set(file("baseline.xml"))
+    */
+
+    /* this disables spotbugs for now: */
+    onlyAnalyze.set(listOf("com.foobar.MyClass", "com.foobar.mypkg.*"))
+    maxHeapSize.set("1g")
+    extraArgs.set(listOf("-nested:false"))
+    jvmArgs.set(listOf("-Duser.language=en"))
+}
