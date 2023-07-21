@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ProcessData>
+  <dir>/ibm/b2bi/install</dir>
+  <val1>VAL1</val1>
+  <val2>VAL1</val2>
+  <result1>VAL1-</result1>
+  <TEST>
+    <UHU>
+      <TEST1>Hello new world!</TEST1>
+      <TEST2/>
+    </UHU>
+  </TEST>
+  <LIST>
+    <ITEM>Item 1</ITEM>
+    <ITEM>Item 2</ITEM>
+    <ITEM>Item 3</ITEM>
+  </LIST>
+  <FOUNDITEM>Item 1Item 2Item 3</FOUNDITEM>
+</ProcessData>
