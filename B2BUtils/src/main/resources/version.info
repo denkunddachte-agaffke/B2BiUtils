@@ -1,0 +1,4 @@
+version=${version}
+build=${buildTime}
+copyright=\u00a9 ${year} ${implementor}
+product=${product}

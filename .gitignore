@@ -1,0 +1,16 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+bin
+
+# Ignore IDE files (eclipse, intellij IDEA)
+.idea
+.settings
+.project
+.classpath
+
+# Ignore output files
+VERSION.txt
+JavaTask-out.dat
