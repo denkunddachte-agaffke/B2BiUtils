@@ -7,3 +7,26 @@
 plugins {
     id("de.denkunddachte.b2biutils.java-library-conventions")
 }
+
+dependencies {
+    /* REST API Client: */
+    api("org.json:json:20230227")
+    implementation("org.apache.httpcomponents:httpclient:4.5.14")
+    implementation("commons-io:commons-io:2.11.0")
+
+    /* JPA
+       Eclipselink 3.x
+     */
+    api("jakarta.persistence:jakarta.persistence-api:3.0.0")
+    api("org.eclipse.persistence:org.eclipse.persistence.jpa:3.0.3")
+    implementation("org.apache.commons:commons-dbcp2:2.9.0")
+    /* Runtime: SQL Server JDBC driver for JPA */
+    runtimeOnly("com.microsoft.sqlserver:mssql-jdbc:10.2.0.jre8")
+
+    /* SSP API: */
+    implementation("javax.ws.rs:javax.ws.rs-api:2.1.1");
+    implementation("javax.xml.bind:jaxb-api:2.3.1")
+
+    /* grab hostkey (SshKnownHostKey.java)*/
+    implementation("com.github.mwiede:jsch:0.2.7")
+}

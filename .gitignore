@@ -14,3 +14,6 @@ bin
 # Ignore output files
 VERSION.txt
 JavaTask-out.dat
+
+.vscode/perl-lang
+/addLic.pl

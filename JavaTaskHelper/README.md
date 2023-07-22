@@ -42,3 +42,25 @@ Available TEST JavaTasks (methods named test*):
 ```
 
 To test your method, run `JavaTask textXXX`.
+
+### Embedded mockup classes
+
+`de.denkunddachte.b2biutils.JavaTask` contains mock implementations of B2Bi internal service classes:
+
+* `MockWFContext`: mockup of `com.sterlingcommerce.woodstock.workflow.WorkFlowContext`, implicitly provided in the variable `wfd`,
+* `Document`: mockup of `com.sterlingcommerce.woodstock.workflow.Document` representing primary documents.
+* `MockXLogger`: mockup of `??` logger, implicitly provided in the variable `log`
+* `MockManager`: mockup of `com.sterlingcommerce.woodstock.util.frame.Manager`.
+* `JDBCService`: mockup of `com.sterlingcommerce.woodstock.util.frame.jdbc.JDBCService class`
+
+
+The mock classes only implement a small subset of methods/functionality of the mocked classes and the implementation 
+might give different results than the original (MockWFContext when using DOM objects for example). Nevertheless, 
+the `JavaTask` wrapper has proved to be very useful when developing...
+
+Always keep in mind, that `JavaTask` service on provide limited language support for Java:
+
+* compatibility level JDK-1.6
+* no boxing/unboxing support (implicit conversion between implicit types and the objects link int to/from Integer)
+* no try-with-resources (JDK-1.7 feature anyway)
+
