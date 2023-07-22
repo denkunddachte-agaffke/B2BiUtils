@@ -1,0 +1,7 @@
+# local data (sample files)
+/dat
+
+# apiconfig.properties for testing/deebugging
+/apiconfig*.properties*
+
+/build.xml

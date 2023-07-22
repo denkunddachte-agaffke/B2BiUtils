@@ -61,12 +61,15 @@ tasks {
 
 tasks.processResources {
     var buildTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.systemDefault()).format(Instant.now())
-    expand("version" to project.version,
+    filesMatching("**/version.info") {
+        expand(
+            "version" to project.version,
             "buildTime" to buildTime,
             "implementor" to "Denk&Dachte GmbH",
             "product" to project.name,
-            "year" to buildTime.substring(0,4)
-    )
+            "year" to buildTime.substring(0, 4)
+        )
+    }
 }
 
 checkstyle {

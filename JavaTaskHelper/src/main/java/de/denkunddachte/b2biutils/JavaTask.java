@@ -61,8 +61,8 @@ import java.util.stream.Collectors;
  */
 public final class JavaTask {
   // If you want to use JDBCService, provide info, if not, leave JDBC_URL empty.
-  private static final String JDBC_POOL   = "mssqlPool";
-  private static final String JDBC_DRIVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+  private static final String        JDBC_POOL     = "mssqlPool";
+  private static final String        JDBC_DRIVER   = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
   private static final String        JDBC_URL      = "jdbc:sqlserver://dbhost:1433;databaseName=SFGDEV1DB;SelectMethod=cursor;sslProtocol=TLSv1.2;trustServerCertificate=true";
   private static final String        JDBC_USER     = "sfgdev1user";
   private static final String        JDBC_PASSWORD = "GehHeim!";
@@ -180,7 +180,7 @@ public final class JavaTask {
     Encoder      enc    = Base64.getEncoder();
     Document     doc    = wfc.getPrimaryDocument();
     Document     newDoc = new Document();
-    InputStream is     = doc.getBodyInputStream();
+    InputStream  is     = doc.getBodyInputStream();
     OutputStream os     = enc.wrap(newDoc.getOutputStream());
     byte[]       buf    = new byte[1024];
     int          b;
@@ -248,7 +248,7 @@ public final class JavaTask {
           int rc = 0;
           for (Method method : JavaTask.class.getMethods()) {
             if (method.getName().toLowerCase().startsWith(methodToExecute.toLowerCase())
-                    || method.getName().toLowerCase().replaceFirst("test", "").startsWith(methodToExecute.toLowerCase())) {
+                || method.getName().toLowerCase().replaceFirst("test", "").startsWith(methodToExecute.toLowerCase())) {
               found = true;
               System.out.println("Execute TEST method: " + method.getName() + "(" + String.join(", ", (String[]) argsToMethod) + ")...");
               if (!userPd) {
@@ -305,8 +305,8 @@ public final class JavaTask {
     System.out.println("  -h              print this help=");
     System.out.println();
     System.out.println("Available TEST JavaTasks (methods named test*):");
-    System.out.println(Arrays.asList(JavaTask.class.getMethods()).stream().filter(m -> m.getName().startsWith("test"))
-        .map(s -> " - " + s.getName()).collect(Collectors.joining(System.lineSeparator())));
+    System.out.println(Arrays.asList(JavaTask.class.getMethods()).stream().filter(m -> m.getName().startsWith("test")).map(s -> " - " + s.getName())
+        .collect(Collectors.joining(System.lineSeparator())));
     System.out.println();
 
     System.exit(exit);
@@ -870,6 +870,7 @@ public final class JavaTask {
     private String             password;
     private String             poolName;
     private static JDBCService instance;
+
     public JDBCService(String poolName, String jdbcDriver, String connectionString, String username, String password) {
       super();
       this.poolName = poolName;

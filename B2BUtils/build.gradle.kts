@@ -9,9 +9,26 @@ plugins {
 }
 
 dependencies {
-    implementation("org.apache.commons:commons-text")
     implementation(project(":ddutils"))
     implementation(project(":B2BApiClient"))
+
+    /* Mail API:*/
+    implementation("com.sun.mail:jakarta.mail:2.0.1")
+
+    /* Loader */
+    implementation("org.apache.poi:poi:5.2.2")
+    implementation("org.apache.poi:poi-ooxml:5.2.2")
+    implementation("org.apache.logging.log4j:log4j-core:2.18.0")
+
+    /* XML Diff */
+    implementation("org.xmlunit:xmlunit-core:2.9.1")
+    implementation("org.xmlunit:xmlunit-matchers:2.9.1")
+
+    /* SFTPClient / host key grabber: */
+    implementation("com.github.mwiede:jsch:0.2.7")
+
+    /* distribution plugin seems to need this: */
+    implementation("org.apache.commons:commons-text")
 }
 
 application {
