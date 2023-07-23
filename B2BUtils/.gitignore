@@ -1,0 +1,12 @@
+# local data (sample files)
+/dat*
+/A0*
+/export.xml
+/sshkeys.txt
+
+# apiconfig.properties for testing/deebugging
+/apiconfig*.properties*
+!/apiconfig-sample.properties
+/build.xml
+/doc
+/DB
