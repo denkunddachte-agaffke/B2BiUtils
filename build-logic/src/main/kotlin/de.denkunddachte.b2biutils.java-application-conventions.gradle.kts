@@ -12,7 +12,7 @@ plugins {
     application
     // Apply the java-library plugin for API and implementation separation.
     //`java-library`
-
+    distribution
 }
 
 tasks.register("createVersionTxt") {
@@ -25,4 +25,15 @@ tasks.register("createVersionTxt") {
 
 tasks.named("jar") {
     finalizedBy("createVersionTxt")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = application.mainClass
+    }
+}
+
+tasks.distTar {
+    compression = Compression.GZIP
+    archiveExtension.set("tar.gz")
 }

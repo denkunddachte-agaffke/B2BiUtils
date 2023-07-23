@@ -3,9 +3,11 @@
  *
  * This project uses @Incubating APIs which are subject to change.
  */
+import org.apache.tools.ant.filters.FixCrLfFilter;
 
 plugins {
     id("de.denkunddachte.b2biutils.java-application-conventions")
+    id("de.denkunddachte.b2biutils.java-library-conventions")
 }
 
 dependencies {
@@ -33,15 +35,32 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    //mainClass.set("de.dd.app.App")
+    mainClass.set("de.denkunddachte.b2biutil.workflow.WorkflowUtil")
 }
+
+/* Suppress generation of default start scripts by distribution plugin */
+tasks.startScripts.configure {
+    actions.clear()
+}
+
 distributions {
     main {
-        distributionBaseName.set("B2BiUtils")
-        distributionClassifier.set("uhu")
+        distributionBaseName.set("b2butils")
         contents {
-            from("scripts/*.sh") {
-
+            from("$projectDir/scripts") {
+                include("*.sh")
+                fileMode = "755".toInt(radix = 8)
+                filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
+            }
+            from("$projectDir/scripts") {
+                include("*.cmd")
+                fileMode = "644".toInt(radix = 8)
+                filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("crlf"))
+            }
+            from("$rootDir") {
+                include("LICENSE", "NOTICE", "COPYRIGHT")
+                fileMode = "644".toInt(radix = 8)
+                filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
             }
         }
     }

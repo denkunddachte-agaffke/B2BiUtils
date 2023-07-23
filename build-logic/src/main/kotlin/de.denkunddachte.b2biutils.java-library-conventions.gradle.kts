@@ -20,6 +20,9 @@ tasks.register<Copy>("copyDependenciesToLibs") {
 tasks.jar {
     dependsOn("copyDependenciesToLibs")
     manifest {
-        attributes["Class-Path"] = configurations.runtimeClasspath.get().joinToString(" ") { it.name }
+        attributes(mapOf("Implementation-Title" to project.name,
+            "Implementation-Version" to project.version,
+            "Class-Path" to configurations.runtimeClasspath.get().joinToString(" ") { it.name }
+        ))
     }
 }

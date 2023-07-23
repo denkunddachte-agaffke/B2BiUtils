@@ -73,7 +73,6 @@ tasks.processResources {
 }
 
 checkstyle {
-    version = "10.12.1"
     configFile = file("${rootProject.projectDir}/config/checkstyle/checkstyle.xml")
 }
 
