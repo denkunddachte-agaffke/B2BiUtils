@@ -1,0 +1,86 @@
+package de.denkunddachte.b2biutil.api;
+
+public final class Props {
+  private Props() {
+  }
+
+  public static final String PROP_LIST                    = "list";
+  public static final String PROP_CREATE                  = "create";
+  public static final String PROP_UPDATE                  = "update";
+  public static final String PROP_DELETE                  = "delete";
+  public static final String PROP_FORCE                   = "force";
+  public static final String PROP_MODIFY                  = "modify";
+  public static final String PROP_ADD_GROUPS              = "addGroups";
+  public static final String PROP_ADD_USERS               = "addUsers";
+  public static final String PROP_SET_GROUPS              = "setGroups";
+  public static final String PROP_SET_USERS               = "setUsers";
+  public static final String PROP_DEL_GROUPS              = "removeGroups";
+  public static final String PROP_DEL_USERS               = "removeUsers";
+  public static final String PROP_SHOW_DETAILS            = "details";
+  public static final String PROP_RECURSE                 = "recurse";
+  public static final String PROP_CREATE_PARENTS          = "createParents";
+  public static final String PROP_INHERIT_FROM_PARENT     = "inheritPerms";
+  public static final String PROP_GROUPS                  = "groups";
+  public static final String PROP_USERS                   = "users";
+  public static final String PROP_CASE_SENSITIVE          = "caseSensitive";
+  public static final String PROP_DESCRIPTION             = "description";
+  public static final String PROP_SHOW_DESCRIPTION        = "showDescription";
+  public static final String PROP_SHOW                    = "show";
+  public static final String PROP_LIST_PARTNER            = "listPartner";
+  public static final String PROP_LIST_RULES              = "listRules";
+  public static final String PROP_LIST_FETCHRULES         = "listFetchRules";
+  public static final String PROP_IMPORT                  = "import";
+  public static final String PROP_EXPORT                  = "export";
+  public static final String PROP_FORMAT                  = "format";
+  public static final String PROP_LDAP_ADMIN              = "admin";
+  public static final String PROP_MD5                     = "md5";
+  public static final String PROP_USER                    = "user";
+  public static final String PROP_PASSWORD                = "password";
+  public static final String PROP_DIGEST                  = "digest";
+  public static final String PROP_ADD_KEY                 = "addKey";
+  public static final String PROP_DEL_KEY                 = "deleteKey";
+  public static final String PROP_DEL_KEYS                = "deleteAllKeys";
+  public static final String PROP_DEL_KEYS_EXCEPT         = "deleteKeysExcept";
+  // public static final String PROP_SSH_KEYMAP = "sshKeyMap";
+  public static final String PROP_MAP_B2BI_KEYS           = "mapB2BiKeys";
+  public static final String PROP_INCL_HOSTKEYS           = "includeHostKeys";
+  public static final String PROP_MAP_FILES               = "mapFiles";
+  public static final String PROP_MAP_LDAP_KEYS           = "mapLdapKeys";
+  public static final String PROP_IGNORE_KEYNAMES         = "ignoreKeyNames";
+  public static final String PROP_VALIDATE                = "validate";
+  public static final String PROP_DRY_RUN                 = "dryrun";
+  public static final String PROP_REPORT                  = "report";
+  public static final String PROP_NAME                    = "name";
+  public static final String PROP_SFTP_CLIENT_ADAPTER_EXT = "sft.sftp.clientadapter.ext";
+  public static final String PROP_SFTP_CLIENT_ADAPTER_INT = "sft.sftp.clientadapter.int";
+  public static final String PROP_GRAB_HOST_KEYS          = "sft.sftp.grabMissingHostKeys";
+  public static final String PROP_CD_CLIENT_ADAPTER_INT   = "sft.cd.clientadapter.int";
+  public static final String PROP_CD_SFGNETMAP_INT        = "sft.cd.sfgnetmap.int";
+  public static final String PROP_CD_SSPNETMAP_INT        = "sft.cd.sspnetmap.int";
+  public static final String PROP_CD_CLIENT_ADAPTER_EXT   = "sft.cd.clientadapter.ext";
+  public static final String PROP_CD_SFGNETMAP_EXT        = "sft.cd.sfgnetmap.ext";
+  public static final String PROP_CD_SSPNETMAP_EXT        = "sft.cd.sspnetmap.ext";
+  public static final String PROP_CD_XLATETAB_SND         = "sft.cd.xlate.defaultSndTable";
+  public static final String PROP_OFTP_ADAPTER_EXT        = "sft.oftp.adapter.ext";
+  public static final String PROP_OFTP_ADAPTER_INT        = "sft.oftp.adapter.int";
+  public static final String PROP_HTTP_CLIENT_ADAPTER_EXT = "sft.http.clientadapter.ext";
+  public static final String PROP_HTTP_CLIENT_ADAPTER_INT = "sft.http.clientadapter.int";
+  public static final String PROP_DUP_DELIVERYPARMS       = "sft.duplicateDeliveryParamsIfMissing";
+  public static final String PROP_FILL_DESCRIPTION        = "sft.transfer.description.action";
+  public static final String PROP_FILL_ADDINFO            = "sft.transfer.additionalinfo.action";
+  public static final String PROP_SSHKEYS                 = "sshkeys";
+  public static final String PROP_PERMISSIONS             = "permissions";
+  public static final String PROP_EXPORT_NULL             = "export.includeNullValues";
+  public static final String PROP_EXPORT_PRETTYPRINT      = "export.prettyPrint";
+  public static final String PROP_PREFIX                  = "prefix";
+  public static final String PROP_CUST_OVERRIDES          = "customerOverrides";
+  public static final String PROP_LIST_FILES              = "list-files";
+  public static final String PROP_GET                     = "get";
+  public static final String PROP_SET                     = "set";
+  public static final String PROP_NODE                    = "node";
+  public static final String PROP_REFRESH_PROPERTIES      = "refresh";
+  public static final String PROP_REFRESH_PROPERTIES_BP   = "refreshPropertiesBPName";
+  public static final String PROP_REPLACE                 = "replace";
+  public static final String PROP_DELETE_PREFIX           = "deletePrefix";
+
+}
