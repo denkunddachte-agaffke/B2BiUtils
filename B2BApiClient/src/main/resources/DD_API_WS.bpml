@@ -1,0 +1,1016 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  DD_API_WS: add helper API functions to B2B Integrator HTTP Server Adapter.
+  Requires:
+    * MSSQL database (for other DBMS, SQL statements must be migrated)  
+    * generic JavaTask service (create service and set participant name below (*_JavaTaskService))
+    * LWJDBC adapter (create service and set participant name below (*_JDBC_ADAPTER_01))
+    * local CLA2 server to launch BPs via WS API (create service and set participant name below (*_CLA2_01))
+    
+  Provides:
+    GET APIs to get full list of (REST APIs have performance issues)
+    * Mailboxes
+    * UserAccounts
+    * SshUserKeys
+    * UserVirtualRoots
+    
+    Helper for deploying, managing, executing, debugging WFDs and XSLTs:
+    * execute BPs
+    * get WFD versions
+    * get XSLTs
+    * enable/disable WFDs
+    * refresh WFD version cache
+    * get process data for execution steps
+    * run export/import resources via API (BP and XSLT)
+    
+ -->
+<process name="DD_API_WS">
+  <rule name="requestMbx?">
+    <condition>api = 'mailboxes'</condition>
+  </rule>
+  <rule name="requestUserAcc?">
+    <condition>api = 'useraccounts'</condition>
+  </rule>
+  <rule name="requestSshUserKeys?">
+    <condition>api = 'sshauthorizeduserkeys'</condition>
+  </rule>
+  <rule name="requestUserVirtualRoots?">
+    <condition>api = 'uservirtualroots'</condition>
+  </rule>
+  <rule name="requestExecuteBP?">
+    <condition>api = 'executebp' and string-length(/ProcessData/bpname) &gt; 0</condition>
+  </rule>
+  <rule name="requestWorkflows?">
+    <condition>api = 'workflows'</condition>
+  </rule>
+  <rule name="requestWorkflowDef?">
+    <condition>api = 'wfd'</condition>
+  </rule>
+  <rule name="requestXsltDef?">
+    <condition>api = 'xslt'</condition>
+  </rule>
+  <rule name="requestEnableWfd?">
+    <condition>api = 'togglewfd' and string-length(bpname) &gt; 0 and number(bpversion) &gt; 0 
+      and (enable = 'true' or enable = 'false')
+    </condition>
+  </rule>
+  <rule name="requestRefreshWfd?">
+    <condition>api = 'refreshwfd' and string-length(bpname) &gt; 0</condition>
+  </rule>
+  <rule name="requestProcessData?">
+    <condition>api = 'processdata' and string-length(wfcid) &gt; 0</condition>
+  </rule>
+  <rule name="requestApiVersion?">
+    <condition>api = 'version'</condition>
+  </rule>
+  <rule name="startTimeRange?">
+    <condition>contains(/ProcessData/starttime, '-')</condition>
+  </rule>
+  <rule name="requestExport?">
+    <condition>api = 'export'</condition>
+  </rule>
+  <rule name="requestImport?">
+    <condition>api = 'import' and string-length(/ProcessData/OrigPrimaryDocument/@SCIObjectID) &gt; 0</condition>
+  </rule>
+  <rule name="exportWFD?">
+    <condition>exportWFD = '1'</condition>
+  </rule>
+  <rule name="exportXSLT?">
+    <condition>exportXSLT = '1'</condition>
+  </rule>
+  <rule name="exportTag?">
+    <condition>string-length(exportTag) &gt; 0</condition>
+  </rule>
+  <rule name="securityContext?">
+    <condition>string-length(secContext) &gt; 0 and string-length(secId) &gt; 0</condition>
+  </rule>
+  <!-- add more artifact types ... -->
+
+  <rule name="runSQL?">
+    <condition>string-length(/ProcessData/SQL) &gt; 0</condition>
+  </rule>
+  <rule name="createJSON?">
+    <condition>string(/ProcessData/json) = '1'</condition>
+  </rule>
+  <rule name="haveDocument?">
+    <condition>string-length(/ProcessData/OrigPrimaryDocument/@SCIObjectID) &gt; 0</condition>
+  </rule>
+  <rule name="setDocName?">
+    <condition>string-length(/ProcessData/filename) &gt; 0</condition>
+  </rule>
+  <rule name="haveOutput?">
+    <condition>string-length(/ProcessData/PrimaryDocument/@SCIObjectID) &gt; 0</condition>
+  </rule>
+
+  <sequence name="DD_API_WS">
+    <assign to="q">'</assign>
+    <assign to="dq">"</assign>
+    <operation name="Assign:config">
+      <participant name="AssignService" />
+      <output message="Xout">
+        <assign to="DB_POOL">mssqlPool</assign>
+        <assign to="HTTP_ERR_STATUS">500</assign>
+        <assign to="OrigPrimaryDocument" from="/ProcessData/PrimaryDocument/@*"/>
+        <assign to="api" from="translate(/ProcessData/api, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"/>
+        <assign to="query_type">SELECT</assign>
+      </output>
+      <input message="Xin">
+        <assign to="." from="*" />
+      </input>
+    </operation>
+
+    <choice name="?requestApi?">
+      <select>
+        <case ref="requestApiVersion?" activity="requestApiVersion!"/>
+        <case ref="requestMbx?" activity="requestMbx!"/>
+        <case ref="requestUserAcc?" activity="requestUserAcc!"/>
+        <case ref="requestSshUserKeys?" activity="requestSshUserKeys!"/>
+        <case ref="requestUserVirtualRoots?" activity="requestUserVirtualRoots!"/>
+        <case ref="requestWorkflows?" activity="requestWorkflows!"/>
+        <case ref="requestWorkflowDef?" activity="requestWorkflowDef!"/>
+        <case ref="requestXsltDef?" activity="requestXsltDef!"/>
+        <case ref="requestProcessData?" activity="requestProcessData!"/>
+        <case ref="requestEnableWfd?" activity="requestEnableWfd!"/>
+      </select>
+      <sequence name="requestApiVersion!">
+        <operation name="Get BP metadata">
+          <participant name="BPMetaDataInfoService" />
+          <output message="xout">
+            <assign to="." from="*" />
+          </output>
+          <input message="xin">
+            <assign to="API_BP" from="string(/xin/BPDATA/WFD_NAME)" />
+          </input>
+        </operation>
+        <assign to="API_VERSION">0.2.4</assign>
+        <assign to="SQL" from="concat('SELECT ', q, API_VERSION, q, ' AS API_VERSION, ', q, API_BP, q, ' AS API_BP_NAME')" />
+      </sequence>
+      <sequence name="requestMbx!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT * FROM (
+                SELECT mb.MAILBOX_ID id, mb.DESCRIPTION description, mb.PATH path, r.RESOURCE_DESC permission, 
+                  CASE WHEN mb.MAILBOX_TYPE IS NULL THEN 'R' ELSE mb.MAILBOX_TYPE END mailboxType,
+                  CASE WHEN mb.MAILBOX_TYPE IS NULL THEN 'Regular' 
+                    WHEN mb.MAILBOX_TYPE = 'L' THEN 'Linked'
+                    WHEN mb.MAILBOX_TYPE = 'S' THEN 'Shared'
+                  END type,
+                  STRING_AGG(ug.USERGROUP_NAME, ',') AS groups,
+                  STRING_AGG(u.USERNAME, ',') AS users
+                FROM MBX_MAILBOX mb
+                  LEFT OUTER JOIN YFS_RESOURCE r ON r.RESOURCE_ID = mb.PATH + '.mbx'
+                  LEFT OUTER JOIN YFS_RESOURCE_PERMISSION rp ON rp.RESOURCE_KEY=r.RESOURCE_KEY
+                  LEFT OUTER JOIN YFS_USER_GROUP ug on rp.USERGROUP_KEY=ug.USERGROUP_KEY
+                  LEFT OUTER JOIN YFS_USER u on rp.USER_KEY=u.USER_KEY
+                GROUP BY mb.MAILBOX_ID, mb.DESCRIPTION, mb.PATH, r.RESOURCE_DESC, mb.MAILBOX_TYPE
+              ) m
+              WHERE 1 = 1
+            </assign>
+            <assign to="matchpath" from="if(contains(concat(/ProcessData/searchFor, '@@'), '/%@@'), concat(' m.path + ', q, '/', q), 'm.path')"/>
+            <assign to="SQLMATCH" from="if(/ProcessData/casesensitive/text() = '1', 
+              concat(/ProcessData/matchpath, ' LIKE ', q, /ProcessData/searchFor, q), 
+              concat(' UPPER(', /ProcessData/matchpath, ') LIKE UPPER(', q, /ProcessData/searchFor, q, ')')
+             )"/>
+            <assign to="SQL" from="if(string-length(/ProcessData/searchFor) &gt; 0, concat(/ProcessData/SQL, ' AND ', /ProcessData/SQLMATCH), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' ORDER BY m.path ASC')"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <sequence name="requestUserAcc!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT TRIM(u.LOGINID) id, ui.EMAILID email, ui.FIRST_NAME givenName, ui.LAST_NAME surname, STRING_AGG(g.USERGROUP_NAME, ',') grouplist, u.ORGANIZATION_KEY identity 
+              FROM YFS_USER u 
+              JOIN YFS_PERSON_INFO ui ON ui.PERSON_INFO_KEY =u.BILLINGADDRESS_KEY
+              LEFT OUTER JOIN YFS_USER_GROUP_LIST gl ON gl.USER_KEY=u.USER_KEY
+              LEFT OUTER JOIN YFS_USER_GROUP g ON g.USERGROUP_KEY=gl.USERGROUP_KEY
+              WHERE u.ACTIVATEFLAG = 'Y'
+            </assign>
+            <assign to="SQL" from="if(string-length(/ProcessData/searchFor) &gt; 0, concat(/ProcessData/SQL, ' AND TRIM(u.LOGINID) LIKE ', q, /ProcessData/searchFor, q), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="if(string-length(/ProcessData/identity) &gt; 0, concat(/ProcessData/SQL, ' AND TRIM(u.ORGANIZATION_KEY) LIKE ', q, /ProcessData/identity, q), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' GROUP BY u.LOGINID, ui.EMAILID, ui.FIRST_NAME, ui.LAST_NAME, u.ORGANIZATION_KEY')"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <sequence name="requestSshUserKeys!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT uk.NAME AS keyName, uk.FINGER_PRINT AS keyFingerPrint, CONVERT(VARCHAR(max), CONVERT(VARBINARY(max), DECOMPRESS(CAST(DATA_OBJECT AS VARBINARY(max))))) AS keyData 
+              FROM SSH_USER_KEY uk JOIN DATA_TABLE d ON d.DATA_ID=uk.RAW_STORE
+              WHERE 1 = 1
+            </assign>
+            <assign to="SQL" from="if(string-length(/ProcessData/searchFor) &gt; 0, concat(/ProcessData/SQL, ' AND uk.NAME LIKE ', q, /ProcessData/searchFor, q), /ProcessData/SQL/text() )"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <sequence name="requestUserVirtualRoots!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT vr.USER_ID AS userName, m.PATH AS mailboxPath 
+              FROM MBX_VIRTUAL_ROOT vr JOIN MBX_MAILBOX m ON m.MAILBOX_ID=vr.ROOT_MAILBOX_ID
+              WHERE 1 = 1
+            </assign>
+            <assign to="SQL" from="if(string-length(/ProcessData/searchFor) &gt; 0, concat(/ProcessData/SQL, ' AND vr.USER_ID LIKE ', q, /ProcessData/searchFor, q), /ProcessData/SQL/text() )"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "requestUserVirtualRoots!" -->
+      <sequence name="requestWorkflows!">
+        <assign to="starttime" from="if(string-length(/ProcessData/starttime) &gt; 0, /ProcessData/starttime/text(), '1h')"/>
+        <choice name="?startTimeRange?">
+          <select>
+            <case ref="startTimeRange?" activity="startTimeRange!"/>
+            <case ref="startTimeRange?" negative="true" activity="noStartTimeRange!"/>
+          </select>
+          <sequence name="startTimeRange!">
+            <operation name="Assign:range">
+              <participant name="AssignService" />
+              <output message="Xout">
+                <assign to="SQLWHERE" from="concat('FORMAT(wc.START_TIME, ', q, 'yyyyMMddHHmmss', q, 
+                ' BETWEEN ', q, substring-before(/ProcessData/starttime, '-'), q, 
+                  ' AND ', q, substring-after(/ProcessData/starttime, '-'), q)"/>
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "startTimeRange!" -->
+          <sequence name="noStartTimeRange!">
+            <operation name="Assign:range">
+              <participant name="AssignService" />
+              <output message="Xout">
+                <assign to="SQLWHERE" from="concat('wc.START_TIME > DATEADD(', if(contains(/ProcessData/starttime, 'h'), 'HOUR', 'MINUTE'), 
+                  ', -1 * ', translate(/ProcessData/starttime, translate(/ProcessData/starttime, '0113456789', ''), ''),
+                  ', GETDATE())')"/>
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "noStartTimeRange!" -->
+        </choice>
+        <!-- END OF choice "?startTimeRange?" -->
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT wc.WORKFLOW_ID AS workFlowId, wc.BRANCH_ID AS branchId, 
+                wd.WFD_ID AS wfdId, wd.WFD_VERSION AS wfdVersion, 
+                wd.NAME AS wfdName, MIN(wc.START_TIME) AS startTime, 
+                MAX(wc.END_TIME) AS endTime, 0 AS stepId, MAX(wc.STEP_ID) AS lastStepId, 
+                CASE 
+                  --WHEN wc2.BASIC_STATUS = 0 AND (wc2.ADV_STATUS IS NULL OR wc2.ADV_STATUS = '') THEN 'Active'
+                  WHEN wc2.BASIC_STATUS = 0 THEN 'Success' 
+                  WHEN wc2.BASIC_STATUS = 1 THEN 'Error' 
+                  WHEN wc2.BASIC_STATUS = 2 THEN 'Warning' 
+                  WHEN wc2.BASIC_STATUS = 3 THEN 'Waiting' 
+                  WHEN wc2.BASIC_STATUS = 10 THEN 'Waiting on IO' 
+                  WHEN wc2.BASIC_STATUS = 100 THEN 'WFE Halted' 
+                  WHEN wc2.BASIC_STATUS = 200 THEN 'WFE System Error' 
+                  WHEN wc2.BASIC_STATUS = 300 THEN 'Configuration Error' 
+                  WHEN wc2.BASIC_STATUS = 400 THEN 'Interrupted (auto)' 
+                  WHEN wc2.BASIC_STATUS = 450 THEN 'Interrupted' 
+                  WHEN wc2.BASIC_STATUS = 900 THEN 'Terminated' 
+                  ELSE CONCAT(wc2.BASIC_STATUS, '/', wc2.ADV_STATUS) 
+                END exeState
+                FROM WORKFLOW_CONTEXT wc
+                JOIN (SELECT w1.WORKFLOW_ID, w1.WFD_ID, w1.WFD_VERSION, wd1.NAME, wd1.TYPE FROM WORKFLOW_CONTEXT w1 JOIN WFD wd1 ON wd1.WFD_ID=w1.WFD_ID AND wd1.WFD_VERSION=w1.WFD_VERSION AND w1.STEP_ID=0) wd ON wd.WORKFLOW_ID=wc.WORKFLOW_ID 
+                JOIN (
+                  SELECT w2.WORKFLOW_ID, w2.BASIC_STATUS, w2.ADV_STATUS
+                  FROM WORKFLOW_CONTEXT w2
+                  WHERE w2.STEP_ID = (SELECT MAX(STEP_ID) FROM WORKFLOW_CONTEXT w3 WHERE w3.WORKFLOW_ID = w2.WORKFLOW_ID)
+                ) wc2 ON wc2.WORKFLOW_ID = wc.WORKFLOW_ID
+            </assign>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' WHERE ', /ProcessData/SQLWHERE)"/>
+            <assign to="SQL" from="if(string-length(/ProcessData/bpname) = 0, /ProcessData/SQL/text(), concat(/ProcessData/SQL, ' AND wd.NAME LIKE ', q, /ProcessData/bpname, q))"/>
+            <assign to="SQL" from="if(/ProcessData/all/text() = '1', /ProcessData/SQL/text(), concat(/ProcessData/SQL, ' AND wd.TYPE = 1'))"/>
+            <assign to="SQL" from="if(/ProcessData/failed/text() = '1', concat(/ProcessData/SQL, ' AND wc2.BASIC_STATUS > 0'), /ProcessData/SQL/text())"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' ', ' GROUP BY
+              wc.WORKFLOW_ID, wc.BRANCH_ID,
+              wd.WFD_ID, wd.WFD_VERSION, wd.NAME,
+              wc2.BASIC_STATUS,
+              wc2.ADV_STATUS
+            ORDER BY wc.WORKFLOW_ID DESC')"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "requestWorkflows!" -->
+      <sequence name="requestWorkflowDef!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT w.WFD_ID, w.WFD_VERSION, w.NAME, w.STATUS, w.EDITED_BY, w.MOD_DATE, '.' + CAST(w.DESCRIPTION AS VARCHAR) DESCRIPTION, 
+                wv.WFD_VERSION LATEST_VERSION, wv.DEFAULT_VERSION
+              FROM WFD w 
+              JOIN WFD_VERSIONS wv ON wv.WFD_ID = w.WFD_ID 
+              WHERE 1 = 1
+            </assign>
+            <assign to="bpname" from="if(string-length(/ProcessData/bpname) &gt; 0, /ProcessData/bpname/text(), '%')"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, if(/ProcessData/casesensitive/text() = '1', 
+              concat(' AND w.NAME LIKE ', q, /ProcessData/bpname, q), 
+              concat(' AND UPPER(w.NAME) LIKE UPPER(', q, /ProcessData/bpname, q, ')')
+             ))"/>
+            <assign to="SQL" from="if(string(/ProcessData/default) = '1', concat(/ProcessData/SQL, ' AND w.WFD_VERSION = wv.DEFAULT_VERSION'), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' ORDER BY w.NAME ASC, w.WFD_VERSION ASC')"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "requestWorkflowDef!" -->
+
+      <sequence name="requestXsltDef!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL">
+              SELECT t.TEMPLATE_NAME, t.TEMPLATE_VERSION, t.STATUS, t.USERNAME, t.CREATE_DATE, t.DESCRIPTION,  '.' + CAST(t.COMMENTS  AS VARCHAR) COMMENTS, 
+                tv.TEMPLATE_VERSION  LATEST_VERSION, tv.DEFAULT_VERSION
+            </assign>   
+            <assign to="name" from="if(string-length(/ProcessData/name) &gt; 0, /ProcessData/name/text(), '%')"/>
+            <assign to="SQL" from="if(string(/ProcessData/template) = '1', concat(/ProcessData/SQL, ', CAST(', q, q, ' AS XML).value(', q, 'xs:base64Binary(sql:column(', dq, 'GZIP_DATA', dq, '))', q, ', ', q, 'VARCHAR(MAX)', q, ') XSLT_TEMPLATE'), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' FROM TEMPLATE t JOIN TEMPLATE_VERSIONS tv ON tv.TEMPLATE_NAME  = t.TEMPLATE_NAME')"/>
+            <assign to="SQL" from="if(string(/ProcessData/template) = '1', concat(/ProcessData/SQL, ' JOIN ( SELECT DATA_ID, PAGE_INDEX, CAST(DATA_OBJECT AS VARBINARY(MAX)) GZIP_DATA FROM DATA_TABLE) d ON d.DATA_ID = t.COMPILED_TEMPLATE AND d.PAGE_INDEX = 0'), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' WHERE t.TEMPLATE_TYPE=4')"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, if(/ProcessData/casesensitive/text() = '1', 
+              concat(' AND t.TEMPLATE_NAME LIKE ', q, /ProcessData/name, q), 
+              concat(' AND UPPER(t.TEMPLATE_NAME) LIKE UPPER(', q, /ProcessData/name, q, ')')
+             ))"/>
+            <assign to="SQL" from="if(string(/ProcessData/default) = '1', concat(/ProcessData/SQL, ' AND t.TEMPLATE_VERSION = tv.DEFAULT_VERSION'), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="if(string-length(/ProcessData/version) &gt; 0, concat(/ProcessData/SQL, ' AND t.TEMPLATE_VERSION = ', /ProcessData/version), /ProcessData/SQL/text() )"/>
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' ORDER BY t.TEMPLATE_NAME ASC, t.TEMPLATE_VERSION ASC')"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "requestWorkflowDef!" -->
+
+      <sequence name="requestProcessData!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="SQL1">
+              DECLARE @wfcid nvarchar(127)
+              DECLARE @pd varbinary(max)
+              DECLARE @stsrpt varbinary(max)
+            </assign>
+            <assign to="SQL2">
+              SELECT @pd = td1.DATA_OBJECT, @stsrpt = td2.DATA_OBJECT 
+                FROM WORKFLOW_CONTEXT wc 
+                  JOIN TRANS_DATA td1 ON td1.DATA_ID = wc.CONTENT 
+                  LEFT OUTER JOIN TRANS_DATA td2 ON td2.DATA_ID = wc.STATUS_RPT
+                WHERE WFC_ID = @wfcid
+              SELECT
+                wc.WFD_ID, wc.WFD_VERSION, wc.WORKFLOW_ID, wc.STEP_ID, wc.SERVICE_NAME,
+                CAST('' AS XML).value('xs:base64Binary(sql:variable("@pd"))','VARCHAR(MAX)') AS PROCESS_DATA,
+                CAST('' AS XML).value('xs:base64Binary(sql:variable("@stsrpt"))','VARCHAR(MAX)') AS STATUS_RPT
+              FROM WORKFLOW_CONTEXT wc
+              WHERE wc.WFC_ID = @wfcid
+            </assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <!-- Strangely, this next assign does not work within the Assign service above... -->
+        <assign to="SQL" from="concat(/ProcessData/SQL1, ' SELECT @wfcid = ', q, /ProcessData/wfcid, q, ' ', /ProcessData/SQL2)"/>
+      </sequence>
+      <!-- END OF sequence "requestProcessData!" -->
+      <sequence name="requestEnableWfd!">
+        <operation name="Assign:SQL">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="newstatus" from="if(enable = 'false', 2, 1)"/>
+            <assign to="oldstatus" from="if(enable = 'false', 1, 2)"/>
+            <assign to="query_type">UPDATE</assign>
+            <assign to="SQL">
+              DECLARE @wfdname nvarchar(127)
+              DECLARE @wfdversion int
+            </assign>
+            <assign to="SQL" from="concat(/ProcessData/SQL, 'SELECT @wfdname=', q, /ProcessData/bpname, q, ', @wfdversion=', /ProcessData/bpversion )" />
+            <assign to="SQL" from="concat(/ProcessData/SQL, ' UPDATE WFD SET STATUS=', newstatus, ' WHERE NAME=@wfdname AND WFD_VERSION=@wfdversion AND STATUS=', oldstatus, ' AND NOT WFD_VERSION IN (SELECT DEFAULT_VERSION FROM WFD_VERSIONS WHERE WFD_NAME=@wfdname)' )" />
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "requestEnableWfd!" -->
+    </choice>
+    <!-- END OF choice "?requestApi?" -->
+
+    <!-- We need to remove PrimaryDocument from PD because xmljsontransformer service does not respect message_to_service! -->
+    <operation name="ReleaseService">
+      <participant name="ReleaseService"/>
+      <output message="ReleaseServiceTypeInputMessage">
+        <assign to="." from="*"/>
+        <assign to="TARGET">PrimaryDocument</assign>
+      </output>
+      <input message="inmsg">
+        <assign to="." from="*"/>
+      </input>
+    </operation>
+
+    <choice name="?runSQL?">
+      <select>
+        <case ref="requestExecuteBP?" activity="executeBP!"/>
+        <case ref="requestRefreshWfd?" activity="requestRefreshWfd!"/>
+        <case ref="requestExport?" activity="runExport!"/>
+        <case ref="requestImport?" activity="runImport!"/>
+        <case ref="runSQL?" negative="false" activity="runSQL!"/>
+        <case ref="runSQL?" negative="true" activity="noValidAPI!"/>
+      </select>
+
+      <sequence name="executeBP!">
+        <choice name="?haveDocument?">
+          <select>
+            <case ref="haveDocument?" activity="haveDocument!"/>
+          </select>
+          <sequence name="haveDocument!">
+            <operation name="GetDocumentInfoService">
+              <participant name="GetDocumentInfoService"/>
+              <output message="xout">
+                <assign to="PrimaryDocument" from="OrigPrimaryDocument/@*"/>
+              </output>
+              <input message="xin">
+                <assign to="." from="/xin/DocumentId|/xin/BodyName|/xin/DocumentLength|/xin/DocumentContentType|/xin/DocumentContentSubType|/xin/DocumentWorkflowId"/>
+              </input>
+            </operation>
+
+            <choice name="?setDocName?">
+              <select>
+                <case ref="setDocName?" activity="setDocName!"/>
+              </select>
+              <sequence name="setDocName!">
+                <operation name="GetDocumentInfoService">
+                  <participant name="GetDocumentInfoService"/>
+                  <output message="xout">
+                    <assign to="PrimaryDocument" from="OrigPrimaryDocument/@*"/>
+                    <assign to="DocumentName" from="/ProcessData/filename/text()"/>
+                    <assign to="BodyName" from="/ProcessData/filename/text()"/>
+                    <assign to="updateMetaDataOnly">true</assign>
+                  </output>
+                  <input message="xin">
+                    <assign to="SET_DOC" from="*" append="true"/>
+                  </input>
+                </operation>
+
+              </sequence>
+              <!-- END OF sequence "setDocName!" -->
+            </choice>
+            <!-- END OF choice "?setDocName?" -->
+          </sequence>
+          <!-- END OF sequence "haveDocument!" -->
+        </choice>
+        <!-- END OF choice "?haveDocument?" -->
+        <operation name="Assign:Command">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="TMP_STEP/installdir" from="sci-get-property('b2bis', 'directory')" append="true"/>
+            <!-- <assign to="TMP_STEP/shareddir" from="sci-get-property('dd', 'BP_EXEC_SHARED_DIR')"/> -->
+            <assign to="TMP_STEP/workdir" from="if(string-length(/ProcessData/TMP_STEP/shareddir) &gt; 0, string(/ProcessData/TMP_STEP/shareddir), string('/tmp'))"/>
+            <assign to="TMP_STEP/execcmd" from="concat(/ProcessData/TMP_STEP/installdir, '/bin/workflowLauncher.sh -u ', /ProcessData/username, ' -n ', /ProcessData/bpname, ' -c -s')"/>
+            <assign to="TMP_STEP/execcmd" from="if(number(/ProcessData/bpversion) &gt; 0, concat(/ProcessData/TMP_STEP/execcmd, ' -v ', /ProcessData/bpversion), string(/ProcessData/TMP_STEP/execcmd))"/>
+            <assign to="TMP_STEP/execcmd" from="if(string-length(/ProcessData/infile) &gt; 0, concat(/ProcessData/TMP_STEP/execcmd, ' -f ', /ProcessData/infile), string(/ProcessData/TMP_STEP/execcmd))"/>
+            <assign to="TMP_STEP/execcmd" from="if(string-length(/ProcessData/DocumentId) &gt; 0, concat(/ProcessData/TMP_STEP/execcmd, ' -f $Input'), string(/ProcessData/TMP_STEP/execcmd))"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <sequence name="runLauncher">
+          <operation name="CLA2_EXECUTE">
+            <participant name="DD_CLA_LOCAL" />
+            <output message="CmdLine2InputMessage">
+              <assign to="PrimaryDocument" from="/ProcessData/OrigPrimaryDocument/@*"/>
+              <assign to="useInput" from="if(string-length(/ProcessData/DocumentId) &gt; 0, 'true', 'false')" />
+              <assign to="useOutput">false</assign>
+              <assign to="keepPath">true</assign>
+              <assign to="cmdLine" from="string(/ProcessData/TMP_STEP/execcmd)"/>
+              <assign to="createUniqueDirForEachFile">No</assign>
+              <assign to="workingDir" from="string(/ProcessData/TMP_STEP/workdir)"/>
+              <assign to="cla2_debug">true</assign>
+              <assign to="successValue">0</assign>
+              <assign to="setSoTimeout">600000</assign>
+            </output>
+            <input message="inmsg">
+              <assign to="TMP_STEP/CLA2_RESULT" from="*" append="true" />
+              <assign to="TMP_STEP" from="Status_Rpt('StsReport')" />
+            </input>
+          </operation>
+          <onFault>
+            <operation name="ReleaseService">
+              <participant name="ReleaseService"/>
+              <output message="ReleaseServiceTypeInputMessage">
+                <assign to="." from="*"/>
+                <assign to="TARGET">Prev_NotSuccess_Adv_Status|ERROR_SERVICE</assign>
+              </output>
+              <input message="inmsg">
+                <assign to="." from="*"/>
+              </input>
+            </operation>
+          </onFault>
+        </sequence>
+        <operation name="JavaTask">
+          <participant name="DD_JavaTaskService" />
+          <output message="Xout">
+            <assign to="." from="*"/>
+            <assign to="srcLocationMode">inline</assign>
+            <!-- Parse workflowLauncher.sh output and create RESULT element with BP chain and fetch some info from DB: -->
+            <assign to="javaSrc"><![CDATA[
+              import java.sql.Connection; import java.sql.PreparedStatement; import java.sql.ResultSet; import java.sql.SQLException;
+              import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
+              import java.util.regex.Pattern; import java.util.Scanner; import java.util.regex.Matcher;
+              import com.sterlingcommerce.woodstock.util.frame.jdbc.JDBCService;
+          
+              final String stsRpt = (String) wfc.getWFContent("TMP_STEP/StsReport");
+              if (stsRpt == null) {
+                return "StsReport is empty!";
+              }
+              final String selectWFDetails = "SELECT wfd.WFD_ID, wfd.WFD_VERSION, wfd.NAME, wfd.DESCRIPTION, wfd.EDITED_BY, COUNT(*) STEPS, fs.FAILED_STEPS "
+                  + "FROM WORKFLOW_CONTEXT wc JOIN WFD wfd ON wfd.WFD_ID = wc.WFD_ID  AND wfd.WFD_VERSION = wc.WFD_VERSION "
+                  + "LEFT OUTER JOIN (SELECT wc2.WORKFLOW_ID, STRING_AGG(CAST(wc2.STEP_ID AS VARCHAR) + ' [' + wc2.SERVICE_NAME + ']', ', ') AS FAILED_STEPS "
+                  + "  FROM WORKFLOW_CONTEXT wc2 WHERE BASIC_STATUS > 0 GROUP BY wc2.WORKFLOW_ID) fs ON fs.WORKFLOW_ID=wc.WORKFLOW_ID "
+                  + "WHERE wc.WORKFLOW_ID = ? GROUP BY wfd.WFD_ID, wfd.WFD_VERSION, wfd.NAME, wfd.DESCRIPTION, wfd.EDITED_BY, fs.FAILED_STEPS";
+              final Pattern wfResult = Pattern
+                  .compile("\\[WorkFlowLauncher\\] TotalTime: (\\d+\\(.?s\\)) " + "numberWaits: (\\d+)\\s+Id\\((\\s*\\d+\\s*)\\) \\((\\S+)\\)"
+                      + "\\s+(?:parent Id \\(\\s*(\\d+)\\s*\\)|())" + "\\s*Requested state: (\\S+) state: (\\S+) < (\\S+) >");
+              final org.w3c.dom.Document doc = ((Node) wfc.getWFContent("/ProcessData")).getOwnerDocument();
+              final Node result = doc.createElement("LAUNCH");
+              Scanner scanner = new Scanner(stsRpt);
+              Connection con = null;
+              PreparedStatement ps = null;
+              try {
+                con = JDBCService.getConnection();
+                ps = con.prepareStatement(selectWFDetails);
+                while (scanner.hasNextLine()) {
+                  String line = scanner.nextLine();
+                  if (!line.startsWith("[WorkFlowLauncher]"))
+                    continue;
+                  Matcher m = wfResult.matcher(line);
+                  if (m.matches()) {
+                    ps.setLong(1, Long.parseLong(m.group(3)));
+                    Node n = doc.createElement("BP");
+          
+                    n.appendChild(doc.createElement("TOTAL_TIME")).setTextContent(m.group(1));
+                    n.appendChild(doc.createElement("NUMBER_WAITS")).setTextContent(m.group(2));
+                    n.appendChild(doc.createElement("ID")).setTextContent(m.group(3));
+                    n.appendChild(doc.createElement("BP_NAME")).setTextContent(m.group(4));
+                    ResultSet rs = null;
+                    try {
+                      rs = ps.executeQuery();
+                      if (rs.next()) {
+                        n.appendChild(doc.createElement("WFD_ID")).setTextContent(rs.getString("WFD_ID"));
+                        n.appendChild(doc.createElement("WFD_VERSION")).setTextContent(rs.getString("WFD_VERSION"));
+                        n.appendChild(doc.createElement("DESCRIPTION")).setTextContent(rs.getString("DESCRIPTION"));
+                        n.appendChild(doc.createElement("EDITED_BY")).setTextContent(rs.getString("EDITED_BY"));
+                        n.appendChild(doc.createElement("STEPS")).setTextContent(rs.getString("STEPS"));
+                        n.appendChild(doc.createElement("FAILED_STEPS")).setTextContent(rs.getString("FAILED_STEPS"));
+                      }
+                    } catch (SQLException e) {
+                      n.appendChild(doc.createElement("SQL_ERR")).setTextContent(e.getMessage());
+                    } finally {
+                      if (rs != null)
+                        rs.close();
+                    }
+                    if (m.group(5) != null) {
+                      n.appendChild(doc.createElement("PARENT_ID")).setTextContent(m.group(5));
+                    }
+                    n.appendChild(doc.createElement("REQ_STATE")).setTextContent(m.group(7));
+                    n.appendChild(doc.createElement("STATE")).setTextContent(m.group(8));
+                    n.appendChild(doc.createElement("RESULT")).setTextContent(m.group(9));
+                    result.appendChild(n);
+                  }
+                }
+          
+              } catch (SQLException e) {
+                result.appendChild(doc.createElement("SQL_ERR")).setTextContent(e.getMessage());
+              } finally {
+                if (ps != null)
+                  ps.close();
+                if (con != null)
+                  con.close();
+              }
+              scanner.close();
+              wfc.addWFContent("RESULT", result);
+              return "OK";
+            ]]>
+            </assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <assign to="RESULT/LAUNCH/RC" from="/ProcessData/TMP_STEP/CLA2_RESULT[last()]/CLA2/ProcessExitValue/text()"/>
+        <assign to="PrimaryDocument" from="DOMToDoc(/ProcessData/RESULT)/@*"/>
+      </sequence>
+      <!-- END OF sequence "executeBP!" -->
+
+      <sequence name="requestRefreshWfd!">
+        <operation name="LJDBC:_Get_Transfer">
+          <participant name="DD_JDBC_ADAPTER_01" />
+          <output message="LightweightJDBCAdapterTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="param1" from="bpname/text()" />
+            <assign to="paramtype1">String</assign>
+            <assign to="pool">mssqlPool</assign>
+            <assign to="query_type">SELECT</assign>
+            <assign to="result_name">result</assign>
+            <assign to="row_name">row</assign>
+            <assign to="sql">SELECT * FROM WFD_VERSIONS wv WHERE wv.WFD_NAME=?</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="DB" from="DocToDOM(PrimaryDocument, 'false', 'false')" append="true"/>
+          </input>
+        </operation>
+        <operation name="JavaTask">
+          <participant name="DD_JavaTaskService" />
+          <output message="Xout">
+            <assign to="." from="*"/>
+            <assign to="srcLocationMode">inline</assign>
+            <assign to="javaSrc"><![CDATA[
+              import com.sterlingcommerce.woodstock.util.CommonUtil;
+              import com.sterlingcommerce.woodstock.util.frame.jdbc.Conn;
+              import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
+              import java.sql.Connection;
+              Connection conn = null;
+              final org.w3c.dom.Document doc = ((Node) wfc.getWFContent("/ProcessData")).getOwnerDocument();
+              final Node result = doc.createElement("RESULT");
+              try {
+                conn = Conn.getConnection();
+                log.log("conn=" + conn);
+                String wfdId = (String)wfc.getWFContent("DB/result/row[1]/WFD_ID", true);
+                String version = (String)wfc.getWFContent("DB/result/row[1]/DEFAULT_VERSION", true);
+                log.log("WFD=" + wfdId + ":" + version);
+                result.appendChild(doc.createElement("WFD_ID_VERSION")).setTextContent(wfdId + ":" + version);
+                CommonUtil.handleCacheUpdate(conn, "workflowdef", wfdId + ":" + version);
+                CommonUtil.handleCacheUpdate(conn, "workflowdef", wfdId);
+              } finally {
+                Conn.freeConnection(conn);
+              }
+              wfc.addWFContent("RESULT", result);
+              return "OK";
+              ]]>
+            </assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <assign to="RESULT/RESULT/RC">0</assign>
+        <assign to="PrimaryDocument" from="DOMToDoc(/ProcessData/RESULT)/@*"/>
+      </sequence>
+      <!-- END OF sequence "requestRefreshWfd!" -->
+
+      <sequence name="runExport!">
+        <operation name="Assign:CreateExportConfigXML">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="TMP_STEP/ExportConfiguration/OutputFormatType" append="true">XML Document</assign>
+            <assign to="TMP_STEP/ExportConfiguration/ExportResourcesBasedOnTagName" from="if(string-length(exportTag) &gt; 0, 'Yes', 'No')" />
+            <assign to="TMP_STEP/ExportConfiguration/ExportType" from="if(exportAll = '1', 'Advanced', 'Standard')"/>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+
+        <choice name="?exportTag?">
+          <select>
+            <case ref="exportTag?" activity="exportTag!"/>
+            <case ref="exportTag?" negative="true" activity="exportByName!"/>
+          </select>
+          <sequence name="exportTag!">
+            <operation name="Assign:addTags">
+              <participant name="AssignService" />
+              <output message="Xout">
+                <assign to="TMP_STEP/ExportConfiguration/Tags/Tag/@Name" from="string(exportTag)" />
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "exportTag!" -->
+          <sequence name="exportByName!">
+
+            <choice name="?exportWFD?">
+              <select>
+                <case ref="exportWFD?" activity="exportWFD!"/>
+              </select>
+              <sequence name="exportWFD!">
+                <operation name="Assign:addBPResources">
+                  <participant name="AssignService" />
+                  <output message="Xout">
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource" from="string('')" append="true" />
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/Name" append="true">Business Process</assign>
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/PatternSet/include" from="if(string-length(include) &gt; 0, include/text(), '*')" append="true" />
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/PatternSet/exclude" from="if(string-length(exclude) &gt; 0, exclude/text(), '@@@')" append="true" />
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/AllVersions" from="if(exportAll = '1', 'true', 'false')" append="true" />
+                  </output>
+                  <input message="Xin">
+                    <assign to="." from="*" />
+                  </input>
+                </operation>
+              </sequence>
+              <!-- END OF sequence "exportWFD!" -->
+            </choice>
+            <!-- END OF choice "?exportWFD?" -->
+
+            <choice name="?exportXSLT?">
+              <select>
+                <case ref="exportXSLT?" activity="exportXSLT!"/>
+              </select>
+              <sequence name="exportXSLT!">
+                <operation name="Assign:addBPResources">
+                  <participant name="AssignService" />
+                  <output message="Xout">
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource" from="string('')" append="true" />
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/Name" append="true">XSLTs</assign>
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/PatternSet/include" from="if(string-length(include) &gt; 0, include/text(), '*')" append="true" />
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/PatternSet/exclude" from="if(string-length(exclude) &gt; 0, exclude/text(), '@@@')" append="true" />
+                    <assign to="TMP_STEP/ExportConfiguration/Resources/Resource/AllVersions" from="if(exportAll = '1', 'true', 'false')" append="true" />
+                  </output>
+                  <input message="Xin">
+                    <assign to="." from="*" />
+                  </input>
+                </operation>
+              </sequence>
+              <!-- END OF sequence "exportXSLT!" -->
+            </choice>
+            <!-- END OF choice "?exportBP?" -->
+
+          </sequence>
+          <!-- END OF sequence "exportByName!" -->
+        </choice>
+        <!-- END OF choice "?exportTag?" -->
+
+        <choice name="?securityContext?">
+          <select>
+            <case ref="securityContext?" activity="securityContext!"/>
+          </select>
+          <sequence name="securityContext!">
+            <operation name="Assign:addSecurityContext">
+              <participant name="AssignService" />
+              <output message="Xout">
+                <assign to="TMP_STEP/ExportConfiguration/Passphrase/SecurityContext" from="string(secContext)" />
+                <assign to="TMP_STEP/ExportConfiguration/Passphrase/SecurityIdentity" from="string(secId)" />
+                <assign to="TMP_STEP/ExportConfiguration/Passphrase/ExportCertificate" from="'Yes'" />
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "securityContext!" -->
+        </choice>
+        <!-- END OF choice "?securityContext?" -->
+
+        <assign to="." from="DOMToDoc(/ProcessData/TMP_STEP, 'PrimaryDocument', 'yes')" />
+        <operation name="Export Service">
+          <participant name="ExportService" />
+          <output message="ExportTypeInputMessage">
+            <assign to="." from="*"></assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+
+        <!-- Send HTTP response async as workaround for bug 
+        (https://www.ibm.com/support/pages/ibm-b2b-sterling-integrator-web-services-bps-fail-due-error-http-respond-service-caused-export-service) -->
+        <operation name="AsyncResponse">
+          <participant name="InvokeSubProcessService" />
+          <output message="InvokeSubProcessServiceTypeInputMessage">
+            <assign to="INVOKE_MODE">ASYNC</assign>
+            <assign to="WFD_NAME">DD_API_WS_RESPONSE</assign>
+            <assign to="." from="*"/>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <operation name="ReleaseService">
+          <participant name="ReleaseService"/>
+          <output message="ReleaseServiceTypeInputMessage">
+            <assign to="." from="*"/>
+            <assign to="TARGET">PrimaryDocument|TMP_STEP</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"/>
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "runExport!" -->
+
+      <sequence name="runImport!">
+        <operation name="Import Service">
+          <participant name="ImportService" />
+          <output message="Xout">
+            <assign to="PrimaryDocument" from="/ProcessData/OrigPrimaryDocument/@*"></assign>
+            <assign to="Context" from="string(secContext)" />
+            <assign to="Identity" from="string(secId)" />
+          </output>
+          <input message="Xin">
+            <assign to="." from="*"></assign>
+            <assign to="TMP_STEP/ImportResult" from="translate(Status_Rpt('StsReport'), '&#10;', '~')" append="true"/>
+          </input>
+        </operation>
+        <operation name="ReleaseService">
+          <participant name="ReleaseService"/>
+          <output message="ReleaseServiceTypeInputMessage">
+            <assign to="." from="*"/>
+            <assign to="TARGET">PrimaryDocument|OrigPrimaryDocument</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"/>
+          </input>
+        </operation>
+        <assign to="." from="DOMToDoc(/ProcessData/TMP_STEP, 'PrimaryDocument', 'yes')" />
+      </sequence>
+      <!-- END OF sequence "runImport!" -->
+
+      <sequence name="runSQL!">
+        <operation name="LJDBC:Select">
+          <participant name="DD_JDBC_ADAPTER_01" />
+          <output message="LightweightJDBCAdapterTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="pool" from="string(/ProcessData/DB_POOL)" />
+
+            <assign to="query_type" from="query_type/text()"/>
+            <assign to="result_name">result</assign>
+            <assign to="row_name">row</assign>
+            <assign to="sql" from="string(/ProcessData/SQL)"/>
+          </output>
+          <input message="inmsg">
+            <assign to="PrimaryDocument" from="PrimaryDocument/@*" append="true"/>
+          </input>
+        </operation>
+
+      </sequence>
+      <!-- END OF sequence "runSQL!" -->
+
+      <sequence name="noValidAPI!">
+        <operation name="Assign:HttpResponse">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <!-- 400/Bad request: -->
+            <assign to="HTTP_ERR_STATUS">400</assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <operation name="Exception:BadRequest">
+          <participant name="BPExceptionService" />
+          <output message="BPExceptionServiceTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="exceptionCode">Bad request</assign>
+            <assign to="statusReport">Bad request</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "noValidAPI!" -->
+    </choice>
+    <!-- END OF choice "?runSQL?" -->
+
+    <choice name="?haveOutput?">
+      <select>
+        <case ref="haveOutput?" activity="haveOutput!"/>
+      </select>
+      <sequence name="haveOutput!">
+        <choice name="?createJSON?">
+          <select>
+            <case ref="createJSON?" activity="createJSON!"/>
+          </select>
+          <sequence name="createJSON!">
+            <operation name="Request">
+              <participant name='xmljsontransformer'/>
+              <output message='xout'>
+                <assign to='PrimaryDocument' from="/ProcessData/PrimaryDocument/@*"/>
+                <assign to='InputType'>XML</assign>
+                <assign to='OutputPath'>DD_API_WS.out.json</assign>
+                <assign to='.' from='*'/>
+              </output>
+              <input message="xin">
+                <assign to='PrimaryDocument' from='PrimaryDocument/@*'/>
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "createJSON!" -->
+        </choice>
+        <!-- END OF choice "?createJSON?" -->
+
+        <!-- Output to HTTP response: -->
+        <operation name="HttpRespond">
+          <participant name="HttpRespond" />
+          <output message="HttpRespondInputMessage">
+            <assign to="doc-has-headers">false</assign>
+            <assign to="status-code">200</assign>
+            <assign to="." from="*"></assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "haveOutput!" -->
+    </choice>
+    <!-- END OF choice "?haveOutput?" -->
+
+    <onFault>
+      <sequence>
+        <choice name="?createJSON?">
+          <select>
+            <case ref="createJSON?" activity="createJSONerror!"/>
+            <case ref="createJSON?" negative="true" activity="createXMLerror!"/>
+          </select>
+          <sequence name="createJSONerror!">
+            <operation name="Text Document Appender">
+              <participant name="TextDocAppender"/>
+              <output message="DocAppendInputMessage">
+                <assign to="appendString" from="concat('{ ', 
+              dq, 'errorCode', dq, ': ', /ProcessData/HTTP_ERR_STATUS, ', ', 
+              dq, 'errorDescription', dq, ': ', dq, /ProcessData/Prev_NotSuccess_Adv_Status, dq, 
+              ' }')"/>
+                <assign to="." from="*"/>
+              </output>
+              <input message="inmsg">
+                <assign to="." from="*"/>
+              </input>
+            </operation>
+          </sequence>
+          <sequence name="createXMLerror!">
+            <operation name="Assign:createErrorXML">
+              <participant name="AssignService" />
+              <output message="Xout">
+                <assign to="XML_OUTPUT/ERROR/CODE" from="number(/ProcessData/HTTP_ERR_STATUS)" append="true"/>
+                <assign to="XML_OUTPUT/ERROR/DESCRIPTION" from="string(/ProcessData/Prev_NotSuccess_Adv_Status)"/>
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+            <assign to="." from="DOMToDoc(/ProcessData/XML_OUTPUT, 'PrimaryDocument')"/>
+          </sequence>
+        </choice>
+        <operation name="ReleaseService">
+          <participant name="ReleaseService"/>
+          <output message="ReleaseServiceTypeInputMessage">
+            <assign to="." from="*"/>
+            <assign to="TARGET">Prev_NotSuccess_Adv_Status|ERROR_SERVICE|TMP_STEP</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"/>
+          </input>
+        </operation>
+        <!-- Output to HTTP response: -->
+        <operation name="HttpRespond">
+          <participant name="HttpRespond" />
+          <output message="HttpRespondInputMessage">
+            <assign to="doc-has-headers">false</assign>
+            <assign to="status-code" from="number(/ProcessData/HTTP_ERR_STATUS)"/>
+            <assign to="." from="*"></assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+      </sequence>
+    </onFault>
+
+  </sequence>
+  <!-- END OF sequence "DD_API_WS" -->
+</process>

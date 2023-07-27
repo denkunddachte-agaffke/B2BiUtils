@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ASYNC WFD to send HTTP response when UserToken was tainted (e.g. by ExportService). Called by DD_API_WS. -->
+<process name="DD_API_WS_RESPONSE">
+  <sequence name="DD_API_WS_RESPONSE">
+    <operation name="HttpRespond">
+      <participant name="HttpRespond" />
+      <output message="HttpRespondInputMessage">
+        <assign to="doc-has-headers">false</assign>
+        <assign to="status-code">200</assign>
+        <assign to="." from="*"></assign>
+      </output>
+      <input message="inmsg">
+        <assign to="." from="*"></assign>
+      </input>
+    </operation>
+  </sequence>
+  <!-- END OF sequence "DD_API_WS_RESPONSE" -->
+</process>
