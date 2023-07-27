@@ -5,3 +5,5 @@
 /apiconfig*.properties*
 
 /build.xml
+/tmp
+

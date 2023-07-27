@@ -1,0 +1,307 @@
+<process name="DD_XAPI_WS">
+  <rule name="haveXapi?">
+    <condition>/ProcessData/http-method/text() = 'POST' and string-length(/ProcessData/xapi) &gt; 0</condition>
+  </rule>
+  <rule name="haveDocument?">
+    <condition>string-length(/ProcessData/PrimaryDocument/@SCIObjectID) &gt; 0</condition>
+  </rule>
+  <rule name="createJSON?">
+    <condition>string(/ProcessData/json) = '1'</condition>
+  </rule>
+  <rule name="haveMoreResultDocs?">
+    <condition>DocExtract.DONE = 0</condition>
+  </rule>
+  <rule name="splitInput?">
+    <condition>string-length(/ProcessData/splitkey) &gt; 0</condition>
+  </rule>
+
+  <sequence name="DD_XAPI_WS">
+    <assign to="q">'</assign>
+    <assign to="dq">"</assign>
+    <operation name="Assign:config">
+      <participant name="AssignService" />
+      <output message="Xout">
+        <assign to="HTTP_ERR_STATUS">500</assign>
+        <assign to="XapiInputDoc" from="/ProcessData/PrimaryDocument/@*"/>
+      </output>
+      <input message="Xin">
+        <assign to="." from="*" />
+      </input>
+    </operation>
+
+    <choice name="?validRequest?">
+      <select>
+        <case ref="haveXapi?" negative="true" activity="noValidAPI!"/>
+        <case ref="haveDocument?" negative="true" activity="noDocument!"/>
+      </select>
+      <sequence name="noValidAPI!">
+        <operation name="Assign:HttpResponse">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <!-- 400/Bad request: -->
+            <assign to="HTTP_ERR_STATUS">400</assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <operation name="Exception:BadRequest">
+          <participant name="BPExceptionService" />
+          <output message="BPExceptionServiceTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="exceptionCode">Bad request</assign>
+            <assign to="statusReport">Bad request</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "noValidAPI!" -->
+      <sequence name="noDocument!">
+        <operation name="Assign:HttpResponse">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <!-- 400/Bad request: -->
+            <assign to="HTTP_ERR_STATUS">400</assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <operation name="Exception:BadRequest">
+          <participant name="BPExceptionService" />
+          <output message="BPExceptionServiceTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="exceptionCode">Bad request</assign>
+            <assign to="statusReport">No input document!</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "noDocument!" -->
+    </choice>
+    <!-- END OF choice "?validRequest?" -->
+    <operation name="ReleaseService">
+      <participant name="ReleaseService"/>
+      <output message="ReleaseServiceTypeInputMessage">
+        <assign to="." from="*"/>
+        <assign to="TARGET">PrimaryDocument</assign>
+      </output>
+      <input message="inmsg">
+        <assign to="." from="*"/>
+      </input>
+    </operation>
+
+    <choice name="?splitInput?">
+      <select>
+        <case ref="splitInput?" activity="splitInput!"/>
+        <case ref="splitInput?" negative="true" activity="singleInput!"/>
+      </select>
+      <sequence name="splitInput!">
+        <operation>
+          <participant name="XAPIService"/>
+          <output message="XAPIServiceInputMesage">
+            <assign to="PrimaryDocument" from="/ProcessData/XapiInputDoc/@*"/>
+            <assign to="api" from="/ProcessData/xapi/text()"/>
+            <assign to="split" from="concat('/root/in/', /ProcessData/splitkey)"/>
+          </output>
+          <input message="XAPIServiceOutputMessage">
+            <assign to="." from="*"/>
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "splitInput!" -->
+      <sequence name="singleInput!">
+        <operation>
+          <participant name="XAPIService"/>
+          <output message="XAPIServiceInputMesage">
+            <assign to="PrimaryDocument" from="/ProcessData/XapiInputDoc/@*"/>
+            <assign to="api" from="/ProcessData/xapi/text()"/>
+          </output>
+          <input message="XAPIServiceOutputMessage">
+            <assign to="." from="*"/>
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "singleInput!" -->
+    </choice>
+    <!-- END OF choice "?splitInput?" -->
+
+    <operation name="ReleaseService">
+      <participant name="ReleaseService"/>
+      <output message="ReleaseServiceTypeInputMessage">
+        <assign to="." from="*"/>
+        <assign to="TARGET">XapiInputDoc</assign>
+      </output>
+      <input message="inmsg">
+        <assign to="." from="*"/>
+      </input>
+    </operation>
+
+
+    <choice name="?singleOutputDoc?">
+      <select>
+        <case ref="haveDocument?" activity="singleOutputDoc!"/>
+        <case ref="haveDocument?" negative="true" activity="multipleOutputDoc!"/>
+      </select>
+      <sequence name="singleOutputDoc!">
+        <operation name="GetDocumentInfoService">
+          <participant name="GetDocumentInfoService"/>
+          <output message="xout">
+            <assign to="PrimaryDocument" from="PrimaryDocument/@*"/>
+            <assign to="DocumentName" from="concat(/ProcessData/xapi, '-response.xml')"/>
+            <!-- <assign to="BodyName" from="/ProcessData/filename/text()"/> -->
+            <assign to="updateMetaDataOnly">true</assign>
+          </output>
+          <input message="xin">
+            <assign to="SET_DOC" from="*" append="true"/>
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "singleOutputDoc!" -->
+      <sequence name="multipleOutputDoc!">
+        <assign to="i">0</assign>
+        <sequence name="foreachSplitDoc">
+          <operation name="For Each Document">
+            <participant name="ForEachDocument"/>
+            <output message="ForEachDocumentTypeInputMessage">
+              <assign to="ITERATOR_NAME">DocExtract</assign>
+              <assign to="." from="*"/>
+            </output>
+            <input message="inmsg">
+              <assign to="." from="*"/>
+            </input>
+          </operation>
+
+          <choice name="?haveMoreResultDocs?">
+            <select>
+              <case ref="haveMoreResultDocs?" activity="haveMoreResultDocs!"/>
+            </select>
+            <sequence name="haveMoreResultDocs!">
+              <assign to="i" from="number(i + 1)"/>
+              <operation name="GetDocumentInfoService">
+                <participant name="GetDocumentInfoService"/>
+                <output message="xout">
+                  <assign to="PrimaryDocument" from="PrimaryDocument/@*"/>
+                  <assign to="DocumentName" from="concat(/ProcessData/xapi, '-response-', i, '.xml')"/>
+                  <!-- <assign to="BodyName" from="/ProcessData/filename/text()"/> -->
+                  <assign to="updateMetaDataOnly">true</assign>
+                </output>
+                <input message="xin">
+                  <assign to="SET_DOC" from="*" append="true"/>
+                </input>
+              </operation>
+              <operation name="ReleaseService">
+                <participant name="ReleaseService"/>
+                <output message="ReleaseServiceTypeInputMessage">
+                  <assign to="." from="*"/>
+                  <assign to="TARGET">PrimaryDocument|SET_DOC</assign>
+                </output>
+                <input message="inmsg">
+                  <assign to="." from="*"/>
+                </input>
+              </operation>
+              <repeat name="repeater" ref="foreachSplitDoc"/>
+            </sequence>
+            <!-- END OF sequence "haveMoreResultDocs!" -->
+          </choice>
+          <!-- END OF choice "?haveMoreResultDocs?" -->
+        </sequence>
+      </sequence>
+      <!-- END OF sequence "multipleOutputDoc!" -->
+    </choice>
+    <!-- END OF choice "?singleOutputDoc?" -->
+    <operation name="Compress">
+      <participant name="CompressionService"/>
+      <output message="outputMessage">
+        <assign to="." from="*"></assign>
+        <assign to ="compression_action">compress</assign>
+        <assign to ="compressed_filename">Result.zip</assign>
+        <assign to ="compression_level">0</assign>
+        <assign to ="compression_type">Deflate</assign>
+      </output>
+      <input message="inputMessage">
+        <assign to="." from="*"></assign>
+      </input>
+    </operation>
+
+    <!-- Output to HTTP response: -->
+    <operation name="HttpRespond">
+      <participant name="HttpRespond" />
+      <output message="HttpRespondInputMessage">
+        <assign to="doc-has-headers">false</assign>
+        <assign to="status-code">200</assign>
+        <assign to="." from="*"></assign>
+      </output>
+      <input message="inmsg">
+        <assign to="." from="*"></assign>
+      </input>
+    </operation>
+
+    <onFault>
+      <sequence>
+        <choice name="?createJSON?">
+          <select>
+            <case ref="createJSON?" activity="createJSONerror!"/>
+            <case ref="createJSON?" negative="true" activity="createXMLerror!"/>
+          </select>
+          <sequence name="createJSONerror!">
+            <operation name="Text Document Appender">
+              <participant name="TextDocAppender"/>
+              <output message="DocAppendInputMessage">
+                <assign to="appendString" from="concat('{ ', 
+              dq, 'errorCode', dq, ': ', /ProcessData/HTTP_ERR_STATUS, ', ', 
+              dq, 'errorDescription', dq, ': ', dq, /ProcessData/Prev_NotSuccess_Adv_Status, dq, 
+              ' }')"/>
+                <assign to="." from="*"/>
+              </output>
+              <input message="inmsg">
+                <assign to="." from="*"/>
+              </input>
+            </operation>
+          </sequence>
+          <sequence name="createXMLerror!">
+            <operation name="Assign:createErrorXML">
+              <participant name="AssignService" />
+              <output message="Xout">
+                <assign to="XML_OUTPUT/ERROR/CODE" from="number(/ProcessData/HTTP_ERR_STATUS)" append="true"/>
+                <assign to="XML_OUTPUT/ERROR/DESCRIPTION" from="string(/ProcessData/Prev_NotSuccess_Adv_Status)"/>
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+            <assign to="." from="DOMToDoc(/ProcessData/XML_OUTPUT, 'PrimaryDocument')"/>
+          </sequence>
+        </choice>
+        <operation name="ReleaseService">
+          <participant name="ReleaseService"/>
+          <output message="ReleaseServiceTypeInputMessage">
+            <assign to="." from="*"/>
+            <assign to="TARGET">Prev_NotSuccess_Adv_Status|ERROR_SERVICE</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"/>
+          </input>
+        </operation>
+        <!-- Output to HTTP response: -->
+        <operation name="HttpRespond">
+          <participant name="HttpRespond" />
+          <output message="HttpRespondInputMessage">
+            <assign to="doc-has-headers">false</assign>
+            <assign to="status-code" from="number(/ProcessData/HTTP_ERR_STATUS)"/>
+            <assign to="." from="*"></assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+      </sequence>
+    </onFault>
+
+  </sequence>
+  <!-- END OF sequence "DD_API_WS" -->
+</process>

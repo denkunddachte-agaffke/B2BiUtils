@@ -78,7 +78,7 @@ The `B2BApiClient` jar contains
 | WorkFlowMonitor Services | workflowmonitors | Y | Y | Workflow + WorkFlowMonitor | Workflow describes a workflow instance, WorkFlowMonitor describes a workflow step |
 ----------------------------------------
 
-## AZ SFT Full persistence APIs
+## Custom table persistence APIs
 
 | Table | Impl | Want | Classname | Comment |
 |-|-|-|-|-|
@@ -109,11 +109,6 @@ The GET APIs require a `Lightweight JDBC Adapter` with name `DD_JDBC_ADAPTER_01`
 **NOTE:** `DD_WS_API` currently supports only MSSQL databases!
 
 The `executebp` requires a generic `JavaTask` service called `DD_JavaTaskService` and a command line adapter `DD_CLA_LOCAL` to launch `workflowLauncher.sh`.
-
-The BP requires the `az_sftlite.properties`:
-* DB_POOL (e.g. `mssqlPool`)
-* BP_EXEC_SHARED_DIR (path to directory accessible both from in- and outside the ASI server when `executebp` is used with `infile` parameter).
-
 
 Implemented APIs:
 
@@ -150,7 +145,7 @@ URL parameters:
 ### Executing workflows
 Example:
 ```bash
-$ curl -u <user>:<password> -X POST -H 'Accept: application/json' -H 'Content-Type: text/plain' --data-binary '@testfile'  "https://garfield:40443/az_api?api=executebp&bpname=A0_TEST_BP&json=1&filename=testfile.txt"
+$ curl -u <user>:<password> -X POST -H 'Accept: application/json' -H 'Content-Type: text/plain' --data-binary '@testfile'  "https://garfield:40443/ws_api?api=executebp&bpname=A0_TEST_BP&json=1&filename=testfile.txt"
 ```
 launches BP `A0_TEST_BP` with content of `./testfile` as primary document with document/body name `testfile.txt`. Parameter `json=1` requests the result as JSON:
 
