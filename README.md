@@ -9,9 +9,12 @@ The project contains
 * [ddutils](ddutils/README.md): Utlilities
 * [JavaTaskHelper](JavaTaskHelper/README.md): Wrapper class to help developing and debugging JavaTask code.
 
+## Releases
+
+Binary releases are available on [Github](https://github.com/denkunddachte-agaffke/B2BiUtils/releases).
 ## Building
 
-The project is built with gradle. To create a distrubtion package, run
+The project is built with gradle. To create a distribution package, run
 
 ```bash
 [B2BiUtils] $ ./gradlew clean distTar
