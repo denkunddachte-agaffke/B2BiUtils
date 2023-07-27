@@ -12,7 +12,6 @@ plugins {
     java
     checkstyle
     id("com.github.spotbugs")
-    id("pl.allegro.tech.build.axion-release") apply true
 }
 
 repositories {
@@ -36,9 +35,6 @@ testing {
         }
     }
 }
-
-project.version  = scmVersion.version
-group = "de.denkunddachte"
 
 // Set compatibility to Java 1.8 for now (B2Bi comes with IBMSDK 8)
 // Note: newer SSH key types (e.g. EC) are not supported. Use JDK >=11 and set compatibility accordingly:
