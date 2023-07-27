@@ -18,7 +18,7 @@ IF "%JAVA_HOME%" NEQ "" (
 
 setlocal ENABLEDELAYEDEXPANSION
 set jar=
-FOR /R %MYDIR% %%F IN (B2BiUtils*.jar) DO set jar=%%F
+FOR /R %MYDIR% %%F IN (B2BUtils*.jar) DO set jar=%%F
 
 %JAVA%  -Dddutils.debug=false -cp %jar% %MAINCLASS% %*
 set RC=%ERRORLEVEL%

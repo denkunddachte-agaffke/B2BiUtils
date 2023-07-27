@@ -30,7 +30,7 @@ dependencies {
     implementation("com.github.mwiede:jsch:0.2.7")
 
     /* distribution plugin seems to need this: */
-    implementation("org.apache.commons:commons-text")
+    runtimeOnly("org.apache.commons:commons-text")
 }
 
 application {
@@ -59,6 +59,11 @@ distributions {
             }
             from("$rootDir") {
                 include("LICENSE", "NOTICE", "COPYRIGHT")
+                fileMode = "644".toInt(radix = 8)
+                filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
+            }
+            from("$projectDir") {
+                include("apiconfig-sample.properties", "sftp.properties")
                 fileMode = "644".toInt(radix = 8)
                 filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
             }

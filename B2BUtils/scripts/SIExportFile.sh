@@ -22,7 +22,7 @@ MYDIR=$(dirname "$(readlink -f $0)")
 OLDWD="$(pwd)"
 cd "$MYDIR"
 
-NAME=B2BiUtils
+NAME=B2BUtils
 MAINCLASS="de.denkunddachte.utils.SIExportFile"
 while [ 1 ]
 do

@@ -12,13 +12,7 @@ plugins {
     `java-library`
 }
 
-tasks.register<Copy>("copyDependenciesToLibs") {
-    from(configurations.compileClasspath)
-    into("$buildDir/libs")
-}
-
 tasks.jar {
-    dependsOn("copyDependenciesToLibs")
     manifest {
         attributes(mapOf("Implementation-Title" to project.name,
             "Implementation-Version" to project.version,

@@ -23,7 +23,7 @@ repositories {
 dependencies {
     constraints {
         // Define dependency versions as constraints
-        implementation("org.apache.commons:commons-text:1.10.0")
+        runtimeOnly("org.apache.commons:commons-text:1.10.0")
     }
 }
 
@@ -96,4 +96,13 @@ spotbugs {
     maxHeapSize.set("1g")
     extraArgs.set(listOf("-nested:false"))
     jvmArgs.set(listOf("-Duser.language=en"))
+}
+
+tasks.register<Copy>("copyDependenciesToLibs") {
+    from(configurations.runtimeClasspath)
+    into("$buildDir/libs")
+}
+
+tasks.jar {
+    dependsOn("copyDependenciesToLibs")
 }

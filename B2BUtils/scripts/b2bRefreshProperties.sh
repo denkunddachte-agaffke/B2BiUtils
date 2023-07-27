@@ -5,7 +5,7 @@ if [ $(basename $MYDIR) == "scripts" ]; then
 fi
 
 MAINCLASS="de.denkunddachte.b2biutil.workflow.WorkflowUtil"
-REFRESH_BP="AZ_REFRESH_PROPERTIES"
+REFRESH_BP="DD_REFRESH_PROPERTIES"
 
 if [ -n "$JRE_HOME" ]
 then
@@ -19,6 +19,6 @@ fi
 
 export LANG=en_US.UTF-8
 
-"$JAVA" -Dddutils.debug=false -cp $(find $MYDIR -name "B2BiUtils*jar"|head -1) $MAINCLASS -E $REFRESH_BP
+"$JAVA" -Dddutils.debug=false -cp $(find $MYDIR -name "B2BUtils*jar"|head -1) $MAINCLASS -E $REFRESH_BP
 exit $?
 

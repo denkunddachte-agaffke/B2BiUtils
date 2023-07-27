@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 MYDIR=$(dirname $(readlink -f "$0"))
 if [ $(basename $MYDIR) == "scripts" ]; then
   MYDIR=$(dirname $MYDIR)
@@ -18,6 +19,6 @@ fi
 
 export LANG=en_US.UTF-8
 
-"$JAVA" -Dddutils.debug=false -cp $(find $MYDIR -name "B2BiUtils*jar"|head -1) $MAINCLASS "$@"
+"$JAVA" -Dddutils.debug=false -cp $(find $MYDIR -name "B2BUtils*jar"|head -1) $MAINCLASS "$@"
 exit $?
 

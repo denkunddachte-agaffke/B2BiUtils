@@ -99,6 +99,7 @@ public class SFTPClient {
       LogConfig.initConfig(CFG);
 
       if (CFG.hasProperty("print-key")) {
+        
         System.out.println("Builtin private key: ");
         System.out.println(BuiltinSshKey.getPrivateKey());
         System.out.println();
