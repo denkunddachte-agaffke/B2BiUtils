@@ -71,6 +71,8 @@ public class Config {
             System.out.format("Config.static: found install path=%s", p);
           if (p.contains("/target/")) {
             installdir = p.substring(0, p.indexOf("/target/"));
+          } else if (p.contains("/bin/main")) {
+            installdir = p.substring(0, p.indexOf("/bin/main"));
           } else if (p.contains("/lib/")) {
             installdir = p.substring(0, p.indexOf("/lib/"));
           } else if (p.endsWith(".jar")) {
