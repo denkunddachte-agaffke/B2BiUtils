@@ -3,7 +3,6 @@ package de.denkunddachte.sftp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
-import java.util.Base64.Decoder;
 import java.util.Properties;
 
 import com.jcraft.jsch.Identity;
@@ -35,8 +34,7 @@ final class BuiltinSshKey implements Identity {
     BuiltinSshKey instance = null;
     try(InputStream is = BuiltinSshKey.class.getClassLoader().getResourceAsStream("de/denkunddachte/sftp/builtinkey.properties")) {
       p.load(is);
-      Decoder b64 = Base64.getDecoder();
-      KeyPair kpair = KeyPair.load(jsch, b64.decode(p.getProperty("private")), b64.decode(p.getProperty("public.ossh")));
+      KeyPair kpair = KeyPair.load(jsch, decodeString(p.getProperty("private")), decodeString(p.getProperty("public.ossh")));
       instance = new BuiltinSshKey(p.getProperty("name"), kpair);
       instance.setPassphrase(p.getProperty("passphrase"));
       instance.setAlgName(p.getProperty("type"));
@@ -153,7 +151,7 @@ final class BuiltinSshKey implements Identity {
     try(InputStream is = BuiltinSshKey.class.getClassLoader().getResourceAsStream("de/denkunddachte/sftp/builtinkey.properties")) {
       p.load(is);
       if (decode) {
-        result = new String(Base64.getDecoder().decode(p.getProperty(property)));
+        result =  new String(decodeString(p.getProperty(property)));
       } else {
         result = p.getProperty(property);
       }
@@ -162,7 +160,16 @@ final class BuiltinSshKey implements Identity {
     }
     return result;
   }
-
+  
+  private static byte[] decodeString(String input) {
+    byte[] in = input.getBytes();
+    byte[] out = new byte[in.length];
+    for (int i = 0; i < in.length; i++) {
+      out[i] = in[in.length - i - 1];
+    }
+    return Base64.getDecoder().decode(out);
+  }
+  
   public static String getSecShPublicKey() {
     return getKeyProperty("public.ssh2", true);
   }
