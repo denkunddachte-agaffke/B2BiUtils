@@ -3,7 +3,13 @@ plugins {
 }
 
 scmVersion {
-    localOnly = true
+    localOnly = false
+    versionCreator("versionWithBranch")
+    tag {
+        prefix.set("v")
+        branchPrefix.set(mapOf("(?i)(az|allianz).*" to "az"))
+    }
+
 }
 project.version  = scmVersion.version
 group = "de.denkunddachte"
