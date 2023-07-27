@@ -15,10 +15,30 @@
 */
 package de.denkunddachte.b2biutils;
 
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Encoder;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.stream.Collectors;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -34,14 +54,11 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
-import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.*;
-import java.util.Base64.Encoder;
-import java.util.stream.Collectors;
+
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 /**
  * JavaTask tester. Use to debug JavaTask code with mocked ProcessData and PrimaryDocuments.
@@ -82,6 +99,10 @@ public final class JavaTask {
   }
 
   /**
+   * Define your test code in public static test<name>(String... args) methods here:
+   */
+  
+  /**
    * IBM's sample JavaTask (see <a href="https://www.ibm.com/support/pages/how-work-ibm-sterling-b2b-integrator-javatask-service">...</a>)
    * @return String ("OK")
    * @throws Exception
@@ -112,8 +133,14 @@ public final class JavaTask {
     // import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
     // import java.io.InputStream; import java.io.OutputStream;
     // import com.sterlingcommerce.woodstock.workflow.Document;
-
-    log.log("Run JavaTaskSample...");
+    // import com.sterlingcommerce.woodstock.util.frame.Manager;
+    
+    //Setup dummy property:
+    Manager.setProperty("myprops", "test", "Test value.");
+    // 
+    
+    String test = Manager.getProperty("myprops", "test");
+    log.log("Run JavaTaskSample... test=" + test);
     Random randomGenerator = new Random();
     int    randomInt       = randomGenerator.nextInt(6) + 1;
     String s               = Integer.toString(randomInt);
@@ -176,7 +203,9 @@ public final class JavaTask {
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import java.util.Base64; import java.util.Base64.Encoder;
     // import java.io.InputStream; import java.io.OutputStream;
-
+    
+    // PrimaryDocumentData: Hello World!
+    
     Encoder      enc    = Base64.getEncoder();
     Document     doc    = wfc.getPrimaryDocument();
     Document     newDoc = new Document();
@@ -193,6 +222,9 @@ public final class JavaTask {
     return "OK";
   }
 
+  /**
+   * Internal:
+   */
   public static void main(final String[] args) {
     // WorkFlowContext asiWfc = new WorkFlowContext(171753);
 
@@ -252,10 +284,10 @@ public final class JavaTask {
               found = true;
               System.out.println("Execute TEST method: " + method.getName() + "(" + String.join(", ", (String[]) argsToMethod) + ")...");
               if (!userPd) {
-                wfc.setPdDocument(JavaTask.getInitProcessData(method.getName()));
+                wfc.setPdDocument(JavaTask.getEmbeddedProcessData(method.getName()));
               }
               if (!userDoc) {
-                wfc.setInputPrimaryDocument(JavaTask.getInitPrimaryDocument(method.getName()));
+                wfc.setInputPrimaryDocument(JavaTask.getEmbeddedPrimaryDocument(method.getName()));
               }
               System.out.println("ProcessData at start:");
               System.out.println(wfc);
@@ -322,10 +354,15 @@ public final class JavaTask {
   }
 
   private static File getSourceFile() {
-    return new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(), JavaTask.class.getName().replace(".", "/") + ".java");
+    File f = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(), JavaTask.class.getName().replace(".", "/") + ".java");
+    // If running in eclipse, look for source file in src folder (assuming default output mapping src/main/java -> bin/main)
+    if (!f.exists()) {
+      f = new File(f.getAbsolutePath().replace("/bin/main/", "/src/main/java/"));
+    }
+    return f;
   }
 
-  private static String getInitProcessData(String methodName) throws IOException {
+  private static String getEmbeddedProcessData(String methodName) throws IOException {
     StringBuilder sb = null;
     try (BufferedReader rd = new BufferedReader(new FileReader(getSourceFile()))) {
       String  line;
@@ -338,8 +375,10 @@ public final class JavaTask {
             continue;
           }
         } else {
+          if (line.matches("\\s*(?:private|public|protected).+?\\S+\\(.+")) {
+            break;
+          }
           if (sb != null) {
-
             sb.append(line.replaceAll("^\\s*//\\s*", ""));
           } else if (line.contains("<ProcessData>")) {
             sb = new StringBuilder(line);
@@ -350,6 +389,7 @@ public final class JavaTask {
         }
       }
     }
+
     if (sb != null) {
       return sb.substring(sb.indexOf("<ProcessData>"), sb.indexOf("</ProcessData>") + 14);
     } else {
@@ -357,7 +397,7 @@ public final class JavaTask {
     }
   }
 
-  private static Document getInitPrimaryDocument(String methodName) throws IOException {
+  private static Document getEmbeddedPrimaryDocument(String methodName) throws IOException {
     StringBuilder sb   = null;
     String        name = null;
     try (BufferedReader rd = new BufferedReader(new FileReader(getSourceFile()))) {
@@ -371,8 +411,10 @@ public final class JavaTask {
             continue;
           }
         } else {
+          if (line.matches("\\s*(?:private|public|protected).+?\\S+\\(.+")) {
+            break;
+          }
           if (line.contains("PrimaryDocumentName:")) {
-
             name = line.replaceAll(".*PrimaryDocumentName:\\s*(.+)\\s*$", "$1");
           } else if (line.contains("PrimaryDocumentData:")) {
             sb = new StringBuilder(line.replaceAll(".*PrimaryDocumentData:\\s*(.+)\\s*$", "$1"));
@@ -389,6 +431,12 @@ public final class JavaTask {
           }
         }
       }
+    }
+    if (sb != null && sb.length() > 0 && name == null) {
+      name = "document.txt";
+    }
+    if (sb == null && name != null) {
+      sb = new StringBuilder("Default sample data...");
     }
     if (name != null) {
       return new Document(name, (sb != null ? sb.toString() : null));
@@ -496,7 +544,8 @@ public final class JavaTask {
       }
     }
 
-    public Object getWFContent(String key, List v, boolean elem_only, boolean enableXPath) throws Exception {
+    @SuppressWarnings("unchecked")
+    public Object getWFContent(String key, @SuppressWarnings("rawtypes") List v, boolean elem_only, boolean enableXPath) throws Exception {
       if (!elem_only) {
         throw new IllegalArgumentException("elem_only = false not implemented in MockWFContext (yet)!");
       }
@@ -790,7 +839,9 @@ public final class JavaTask {
         }
       }
       bodyName = filename;
-      return new FileOutputStream(filename);
+      File f = new File(filename);
+      System.out.format("Write PrimaryDocument \"%s\" to %s%n", bodyName, f.getAbsolutePath());
+      return new FileOutputStream(f);
     }
 
     public String getBodyName() {
@@ -923,6 +974,7 @@ public final class JavaTask {
   * @author A. Gaffke
   *
   */
+  @SuppressWarnings("unused")
   static class MockManager {
     static final Map<String, Properties> cache   = new HashMap<>();
     public static final String           DEFAULT = "_DEFAULT_";
