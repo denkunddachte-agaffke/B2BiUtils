@@ -6,7 +6,7 @@
     // launch build tasks with CTRL+SHIFT+b
     {
       // launch deploy with SHIFT+F2 (if keybindings.json is installed)
-      "label": "Deploy WFD",
+      "label": "Deploy WFD/XSLT",
       "type": "shell",
       "command": "b2bWorkflowMgr.sh",
       "windows": {
@@ -20,13 +20,41 @@
       }
     },
     {
+      "label": "Compare local WFD/XSLT file with default version on server",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-c", "${file}", "--verbose"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "Fetch WFD",
       "type": "shell",
       "command": "b2bWorkflowMgr.sh",
       "windows": {
         "command": "b2bWorkflowMgr.cmd"
       },
-      "args": ["-g", "${fileBasenameNoExtension}", "-f", "${file}.remote"],
+      "args": ["-g", "${fileBasenameNoExtension}", "-f", "${fileDirname}/${fileBasenameNoExtension}.remote.bpml"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Fetch XSLT",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-T", "-g", "${fileBasenameNoExtension}", "-f", "${fileDirname}/${fileBasenameNoExtension}.remote.xslt"],
       "group": "build",
       "presentation": {
         "reveal": "always",
@@ -41,6 +69,20 @@
         "command": "b2bWorkflowMgr.cmd"
       },
       "args": ["-L", "${fileBasenameNoExtension}", "-a"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "List XSLT versions",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-T", "-L", "${fileBasenameNoExtension}", "-a"],
       "group": "build",
       "presentation": {
         "reveal": "always",
@@ -104,6 +146,20 @@
         "panel": "dedicated"
       }
     },
+    {
+      "label": "Deploy & execute WFD with primary doc from file dat/PrimaryDoc.dat",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-p", "${file}", "-E", "${fileBasenameNoExtension}", "-P", "dat/PrimaryDoc.dat", "-n", "input.dat", "-X", "--pd=!,-1"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
    {
       "label": "Refresh properties",
       "type": "shell",
@@ -118,18 +174,46 @@
       }
     },
     {
-       "label": "List customer_overrides properties",
-       "type": "shell",
-       "command": "b2bPropertiesAdmin.sh",
-       "windows": {
-         "command": "b2bPropertiesAdmin.cmd"
-       },
-       "args": ["-O", "-L"],
-       "group": "test",
-       "presentation": {
-         "reveal": "always",
-         "panel": "dedicated"
-       }
+      "label": "List dd properties",
+      "type": "shell",
+      "command": "b2bPropertiesAdmin.sh",
+      "windows": {
+        "command": "b2bPropertiesAdmin.cmd"
+      },
+      "args": ["-P", "dd", "-L"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "List customer_overrides properties",
+      "type": "shell",
+      "command": "b2bPropertiesAdmin.sh",
+      "windows": {
+        "command": "b2bPropertiesAdmin.cmd"
+      },
+      "args": ["-O", "-L"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Execute A0_TEST_BP...",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-E", "A0_TEST_BP", "-X", "--pd=!,-1"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     }
   ]
 }
