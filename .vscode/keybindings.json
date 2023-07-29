@@ -1,0 +1,13 @@
+// Add this to your keybindings.json
+[
+  {
+    "key": "shift+F2",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Deploy WFD"
+  },
+  {
+    "key": "ctrl+shift+t",
+    "command": "workbench.action.tasks.test",
+    "when": "editorLangId == xml"
+  }
+]

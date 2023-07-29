@@ -1,0 +1,135 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    // launch build tasks with CTRL+SHIFT+b
+    {
+      // launch deploy with SHIFT+F2 (if keybindings.json is installed)
+      "label": "Deploy WFD",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-p", "${file}"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Fetch WFD",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-g", "${fileBasenameNoExtension}", "-f", "${file}.remote"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "List WFD versions",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-L", "${fileBasenameNoExtension}", "-a"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    // launch test tasks with CTRL+SHIFT+t (if keybindings.json is installed)
+    {
+      "label": "Deploy & execute WFD",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-p", "${file}", "-E", "${fileBasenameNoExtension}", "-X", "--pd=!,-1"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Deploy & execute WFD with primary doc",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-p", "${file}", "-E", "${fileBasenameNoExtension}", "--data", "This is WFD test data.", "-n", "testdata.txt", "-X", "--pd=!,-1"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Execute WFD",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-E", "${fileBasenameNoExtension}", "-X", "--pd=!,-1"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Execute WFD with primary doc",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["-E", "${fileBasenameNoExtension}", "--data", "This is WFD test data.", "-n", "testdata.txt", "-X", "--pd=!,-1"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+   {
+      "label": "Refresh properties",
+      "type": "shell",
+      "command": "b2bRefreshProperties.sh",
+      "windows": {
+        "command": "b2bRefreshProperties.cmd"
+      },
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+       "label": "List customer_overrides properties",
+       "type": "shell",
+       "command": "b2bPropertiesAdmin.sh",
+       "windows": {
+         "command": "b2bPropertiesAdmin.cmd"
+       },
+       "args": ["-O", "-L"],
+       "group": "test",
+       "presentation": {
+         "reveal": "always",
+         "panel": "dedicated"
+       }
+    }
+  ]
+}
