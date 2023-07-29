@@ -3,11 +3,11 @@
   {
     "key": "shift+F2",
     "command": "workbench.action.tasks.runTask",
-    "args": "Deploy WFD"
+    "args": "Deploy WFD/XSLT"
   },
   {
     "key": "ctrl+shift+t",
     "command": "workbench.action.tasks.test",
-    "when": "editorLangId == xml"
+    "when": "editorLangId == xml || editorLangId == xslt"
   }
 ]
