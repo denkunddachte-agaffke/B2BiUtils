@@ -198,6 +198,24 @@
     ],
     "description": "BPML invoke BP inline"
   },
+  "BPML Async": {
+    "prefix": "bpAsync",
+    "body": [
+      "<assign to=\"message_to_child/${2:PARAM}\" from=\"string(${2:PARAM}\" />",
+      "<operation name=\"Invoke ${1:name}\">",
+      "  <participant name=\"InvokeSubProcessService\" />",
+      "  <output message=\"InvokeSubProcessServiceTypeInputMessage\">",
+      "    <assign to=\"INVOKE_MODE\">ASYNC</assign>",
+      "    <assign to=\"WFD_NAME\">${3:WFDName}</assign>",
+      "    <assign to=\"NOTIFY_PARENT_ON_ERROR\">ALL</assign>",
+      "  </output>",
+      "  <input message=\"inmsg\">",
+      "    <assign to=\".\" from=\"*\" />",
+      "  </input>",
+      "</operation>",
+    ],
+    "description": "BPML invoke BP async"
+  },
   "BPML JavaTask": {
     "prefix": "bpJavaTask",
     "body": [
@@ -389,4 +407,22 @@
     ],
     "description": "BPML manipulate locks"
   },
+  "BPML CloseSFTPSessionInline": {
+    "prefix": "bpCloseSFTPSessionInline",
+    "body": [
+      "<operation name=\"Close SFTP session\">",
+      "  <participant name=\"InvokeSubProcessService\" />",
+      "  <output message=\"InvokeSubProcessServiceTypeInputMessage\">",
+      "    <assign to=\"INVOKE_MODE\">INLINE</assign>",
+      "    <assign to=\"WFD_NAME\">AZ_SFTP_DISCONNECT</assign>",
+      "    <assign to=\"NOTIFY_PARENT_ON_ERROR\">NONE</assign>",
+      "  </output>",
+      "  <input message=\"inmsg\">",
+      "    <assign to=\".\" from=\"*\" />",
+      "  </input>",
+      "</operation>",
+    ],
+    "description": "BPML close SFTP session with AZ_SFTP_DISCONNECT"
+  },  
+  // Add local additions here:
 }
