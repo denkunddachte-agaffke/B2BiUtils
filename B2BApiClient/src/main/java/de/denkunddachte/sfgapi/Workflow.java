@@ -331,16 +331,13 @@ public class Workflow extends ApiClient {
       }
       params.put("workFlowId", String.valueOf(workflowId));
       Workflow wf = new Workflow();
-      while (true) {
-        JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
-        for (int i = 0; i < jsonObjects.length(); i++) {
-          wf = wf.addWorkflowStep(jsonObjects.getJSONObject(i));
-          if (result.isEmpty() || result.get(result.size() - 1).getWorkFlowId() != wf.getWorkFlowId()) {
-            result.add(wf);
-          }
+      JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
+      // workflowmonitors will always (if memory allows) return ALL steps, so no _range loop here!
+      for (int i = 0; i < jsonObjects.length(); i++) {
+        wf = wf.addWorkflowStep(jsonObjects.getJSONObject(i));
+        if (result.isEmpty() || result.get(result.size() - 1).getWorkFlowId() != wf.getWorkFlowId()) {
+          result.add(wf);
         }
-        if (jsonObjects.length() < API_RANGESIZE)
-          break;
       }
     } catch (JSONException | UnsupportedEncodingException e) {
       throw new ApiException(e);
