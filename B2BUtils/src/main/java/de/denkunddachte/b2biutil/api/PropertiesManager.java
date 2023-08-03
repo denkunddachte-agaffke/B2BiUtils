@@ -29,8 +29,7 @@ import de.denkunddachte.utils.WordUtil;
 
 public class PropertiesManager extends AbstractConsoleApp {
   private static final String PREFIX_DESCRIPTION = "prefixDescription";
-  //private static final Logger LOG = Logger.getLogger(PropertiesManager.class.getName());
-  
+  // private static final Logger LOG = Logger.getLogger(PropertiesManager.class.getName());
 
   static {
     OPTIONS.setProgramName(PropertiesManager.class.getName());
@@ -149,7 +148,7 @@ public class PropertiesManager extends AbstractConsoleApp {
       }
 
       if (api.getRc() == 0 && cfg.hasProperty(Props.PROP_REFRESH_PROPERTIES)) {
-        api.refresh();
+        api.refresh(cfg.getProperty(Props.PROP_PREFIX));
       }
       rc = api.getRc();
     } catch (CommandLineException e) {
@@ -306,7 +305,7 @@ public class PropertiesManager extends AbstractConsoleApp {
     Collections.sort(keys);
     Pattern p = Pattern.compile("(\\S+)\\[node(\\d+)\\]");
     for (String key : keys) {
-      Matcher m   = p.matcher(key);
+      Matcher m = p.matcher(key);
       if (m.matches()) {
         setProperty(prefix, m.group(1), Integer.parseInt(m.group(2)), props.getProperty(key));
       } else {
@@ -396,14 +395,23 @@ public class PropertiesManager extends AbstractConsoleApp {
     System.out.format("Deleted %d properties, %d deletions failed.", deleted, failed);
   }
 
-  private void refresh() throws ApiException {
-    final String       bpname = cfg.getString(Props.PROP_REFRESH_PROPERTIES_BP, "DD_REFRESH_PROPERTIES");
-    WorkflowDefinition wfd    = WorkflowDefinition.find(bpname);
-    Workflow           wf     = wfd.execute();
-    if (wf.getExeState() == ExecState.SUCCESS) {
-      System.out.format("Refresh properties (%s) executed successfully (WF_ID %s, %d steps).", bpname, wf.getWorkFlowId(), wf.getNumberOfSteps());
+  private void refresh(String prefix) throws ApiException {
+    if (PropertyFiles.canRefresh()) {
+      List<String> nodes = PropertyFiles.refreshCache(prefix);
+      System.out.format("Refreshed properties prefix %s on %s%n", prefix, nodes);
     } else {
-      System.err.format("Refresh properties (%s) failed with state %s (WF_ID %s).", bpname, wf.getExeState(), wf.getWorkFlowId());
+      final String       bpname = cfg.getString(Props.PROP_REFRESH_PROPERTIES_BP, "DD_REFRESH_PROPERTIES");
+      WorkflowDefinition wfd    = WorkflowDefinition.find(bpname);
+      if (wfd != null) {
+        Workflow wf = wfd.execute();
+        if (wf.getExeState() == ExecState.SUCCESS) {
+          System.out.format("Refresh properties (%s) executed successfully (WF_ID %s, %d steps).", bpname, wf.getWorkFlowId(), wf.getNumberOfSteps());
+        } else {
+          System.err.format("Refresh properties (%s) failed with state %s (WF_ID %s).", bpname, wf.getExeState(), wf.getWorkFlowId());
+        }
+      } else {
+        System.err.format("Refresh properties not available. Install %s or WFD %s.", "DD_API_WS", bpname);
+      }
     }
   }
 }

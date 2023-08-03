@@ -47,6 +47,7 @@ public class PropertyFiles extends ApiClient {
   protected static final String PROPERTY_FILE_ID = "propertyFileId";
   private final static Logger   LOGGER           = Logger.getLogger(PropertyFiles.class.getName());
   protected static final String SVC_NAME         = "propertyfiles";
+  protected static final String WFD_WS_API       = "refresh";
   protected static final String ID_PROPERTY      = PROPERTY_FILE_ID;
   private int                   propertyFileId;
 
@@ -121,9 +122,9 @@ public class PropertyFiles extends ApiClient {
     if (nodeValues != null) {
       Pattern nodeValuePattern = Pattern.compile("(\\S+)\\[node(\\d+)\\]");
       for (Object k : nodeValues.keySet()) {
-        Matcher m = nodeValuePattern.matcher((String)k);
+        Matcher  m = nodeValuePattern.matcher((String) k);
         Property p = getProperty(m.group(1));
-        p.setNodeValue(Integer.parseInt(m.group(2)), nodeValues.getProperty((String)k));
+        p.setNodeValue(Integer.parseInt(m.group(2)), nodeValues.getProperty((String) k));
         p.update();
       }
       nodeValues = null;
@@ -322,6 +323,10 @@ public class PropertyFiles extends ApiClient {
     }
   }
 
+  public List<String> refreshCache() throws ApiException {
+    return PropertyFiles.refreshCache(getPropertyFilePrefix());
+  }
+  
   @Override
   public String toString() {
     return "PropertyFiles [propertyFileId=" + propertyFileId + ", propertyFilePrefix=" + propertyFilePrefix + ", description=" + description
@@ -400,5 +405,28 @@ public class PropertyFiles extends ApiClient {
       result = true;
     }
     return result;
+  }
+
+  public static boolean canRefresh() {
+    return useWsApi(WFD_WS_API);
+  }
+
+  public static List<String> refreshCache(String prefix) throws ApiException {
+    if (!useWsApi(WFD_WS_API)) {
+      throw new ApiException("The " + WFD_WS_API + " API is not implemented or not configured in ApiConfig!");
+    }
+    final List<String> nodes = new ArrayList<>();
+    try {
+      JSONArray json = getJSONArray(getJSONFromWsApi(WFD_WS_API, "&prefix=" + prefix, true));
+      if (ApiClient.getApiReturnCode() != 200) {
+        throw new ApiException("WS API returned " + ApiClient.getApiReturnCode() + "/" + ApiClient.getApiErrorMsg());
+      }
+      for (int i = 0; i < json.length(); i++) {
+        nodes.add(json.getJSONObject(i).getString("NODE_NAME"));
+      }
+    } catch (JSONException e) {
+      throw new ApiException(e);
+    }
+    return nodes;
   }
 }

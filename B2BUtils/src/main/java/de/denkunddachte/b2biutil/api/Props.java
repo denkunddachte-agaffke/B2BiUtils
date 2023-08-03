@@ -82,5 +82,7 @@ public final class Props {
   public static final String PROP_REFRESH_PROPERTIES_BP   = "refreshPropertiesBPName";
   public static final String PROP_REPLACE                 = "replace";
   public static final String PROP_DELETE_PREFIX           = "deletePrefix";
+  //public static final String PROP_SITE_PREFIX_MAP         = "resources.siteprefix.map";
+  public static final String PROP_WSAPI_SVCMAP            = "sfgapi.wsapi.svcmap";
 
 }

@@ -1,26 +1,32 @@
 package de.denkunddachte.b2biutil;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.io.Writer;
 import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import de.denkunddachte.util.ApiConfig;
+import org.apache.commons.io.output.FileWriterWithEncoding;
+
 import de.denkunddachte.b2biutil.api.Props;
 import de.denkunddachte.b2biutil.workflow.WorkflowUtil;
 import de.denkunddachte.exception.ApiException;
 import de.denkunddachte.ft.ExportOutput;
 import de.denkunddachte.ft.Exportable;
 import de.denkunddachte.sfgapi.ApiClient;
+import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.utils.CommandLineParser;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.CommandLineOption;
@@ -44,6 +50,9 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
   protected int                            rc                = 0;
   protected static final CommandLineParser OPTIONS           = new CommandLineParser(false);
   protected ExportOutput                   exporter          = null;
+  // implement general site prefix mapping? see issue #31
+  //protected Map<String,String>             sitePrefixMap     = new LinkedHashMap<>();
+  protected Map<String,String>             svcNameMap        = new LinkedHashMap<>();
 
   public AbstractConsoleApp(String[] args) throws CommandLineException, ApiException {
     LogConfig.initConfig();
@@ -129,6 +138,8 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     LogConfig.initConfig();
     // cfg.setCommandLine(cmdLine);
 
+    //toMap(cfg.getString(Props.PROP_SITE_PREFIX_MAP), sitePrefixMap);
+    toMap(cfg.getString(Props.PROP_WSAPI_SVCMAP), svcNameMap);
     if (cmdLine.containsKey(UPDATE_WS_API)) {
       updateWsApi();
       System.exit(0);
@@ -264,19 +275,55 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
   private void updateWsApi() throws ApiException {
     String bp = ApiClient.getWsApiVersion();
     try {
-      File tmpFile = File.createTempFile("DD_API_WS", ".bpml");
+      String bpName = mapResourceName(bp.substring(0, bp.lastIndexOf('-')));
+      File tmpFile = File.createTempFile(bpName, ".bpml");
       tmpFile.deleteOnExit();
-      try (OutputStream os = new FileOutputStream(tmpFile); InputStream is = ApiClient.class.getClassLoader().getResourceAsStream("DD_API_WS.bpml")) {
-        byte[] buf = new byte[8192];
-        int    b;
-        while ((b = is.read(buf)) > 0) {
-          os.write(buf, 0, b);
+      try (Writer wr = new FileWriterWithEncoding(tmpFile, StandardCharsets.UTF_8);
+          BufferedReader rd = new BufferedReader(
+              new InputStreamReader(ApiClient.class.getClassLoader().getResourceAsStream("DD_API_WS.bpml"), StandardCharsets.UTF_8))) {
+        String line;
+        while ((line = rd.readLine()) != null) {
+          //wr.write(patchLine(line, (svcNameMap.isEmpty() ? sitePrefixMap : svcNameMap)));
+          wr.write(patchLine(line, svcNameMap));
+          wr.append('\n');
         }
       }
-      WorkflowUtil.main(new String[] {"-p", bp.substring(0, bp.lastIndexOf('-')), "-f", tmpFile.getAbsolutePath()});
+      WorkflowUtil.main(new String[] { "-p", bpName, "-f", tmpFile.getAbsolutePath() });
       // won't return!
     } catch (IOException e) {
       throw new ApiException(e);
+    }
+  }
+
+  protected String patchLine(String in, Map<String, String> map) {
+    if (map.isEmpty()) {
+      return in;
+    }
+    String out = in;
+    for (Entry<String, String> e : map.entrySet()) {
+      out = out.replace("\"" + e.getKey(), "\"" + e.getValue());
+    }
+    return out;
+  }
+  
+  protected String mapResourceName(String baseName) {
+    for (Entry<String, String> e : svcNameMap.entrySet()) {
+        if (baseName.startsWith(e.getKey())) {
+          return e.getValue() + baseName.substring(e.getKey().length());
+        }
+    }
+    return baseName;
+  }
+  
+  private void toMap(String mapstr, Map<String, String> map) {
+    if(!mapstr.isEmpty()) {
+      for (String m : mapstr.split(",")) {
+        if (m.indexOf(':') == -1) {
+          LOG.log(Level.WARNING, "Ignore invalid mapping {0} in [{1}].", new Object[] {m, mapstr});
+        } else {
+          map.put(m.substring(0, m.indexOf(':')), m.substring(m.indexOf(':')+1));
+        }
+      }
     }
   }
 }
