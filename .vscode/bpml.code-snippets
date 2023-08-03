@@ -216,6 +216,22 @@
     ],
     "description": "BPML invoke BP async"
   },
+  "BPML DynamicSvcInvoker": {
+    "prefix": "bpDynSvcInvoker",
+    "body": [
+      "<operation name=\"${1:name}\">",
+      "  <participant name=\"SOAServiceInvoker_Instance\" />",
+      "  <output message=\"InvokeSubProcessServiceTypeInputMessage\">",
+      "    <assign to=\"SVC_NAME\" from=\"string(ServiceName)\"/>",
+      "    <assign to=\"PrimaryDocument\" from=\"PrimaryDocument/@*\" />",
+      "  </output>",
+      "  <input message=\"inmsg\">",
+      "    <assign to=\".\" from=\"*\" />",
+      "  </input>",
+      "</operation>",
+    ],
+    "description": "BPML dynamically invoke service/adapter"
+  },
   "BPML JavaTask": {
     "prefix": "bpJavaTask",
     "body": [
@@ -423,6 +439,6 @@
       "</operation>",
     ],
     "description": "BPML close SFTP session with AZ_SFTP_DISCONNECT"
-  },  
+  },
   // Add local additions here:
 }
