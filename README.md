@@ -69,7 +69,7 @@ Depending on what you want to use, configure sections
 * `ldap.*`: if you want to manage LDAP users/ssh keys (with SEAS)
 * `ssp.*` and `cd.*`: If you want to access SSP REST APIs (currently only C:D netmap)
  
-
+x
 # Bugs/issues
 Please report issues, ideas, change requests etc. in [issues](https://github.com/denkunddachte-agaffke/B2BiUtils/issues).
 
