@@ -12,7 +12,7 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-*/
+ */
 package de.denkunddachte.utils;
 
 import java.io.File;
@@ -22,6 +22,8 @@ import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
@@ -33,13 +35,14 @@ import java.util.logging.Logger;
 import java.util.logging.StreamHandler;
 
 public class LogConfig {
-  protected static final String FMT_DATETIME    = "yyyy-MM-dd HH:mm:ss.SSS";
-  protected static final String FMT_TIME        = "HH:mm:ss.SSS";
-  protected static final String LF              = System.getProperty("line.separator");
-  public static final String    PROP_LOG_STDOUT = "log.stdout";
-  public static final String    PROP_LOG_STDERR = "log.stderr";
-  private static final Logger   rootLogger      = LogManager.getLogManager().getLogger("");
-  private static final String   ID              = "de.denkunddachte";
+  protected static final String    FMT_DATETIME    = "yyyy-MM-dd HH:mm:ss.SSS";
+  protected static final String    FMT_TIME        = "HH:mm:ss.SSS";
+  protected static final String    LF              = System.getProperty("line.separator");
+  public static final String       PROP_LOG_STDOUT = "log.stdout";
+  public static final String       PROP_LOG_STDERR = "log.stderr";
+  public static final String       PROP_LOG_IDS    = "log.ids";
+  private static final Logger      rootLogger      = LogManager.getLogManager().getLogger("");
+  private static final Set<String> IDS             = new HashSet<>();
 
   private LogConfig() {
     super();
@@ -50,13 +53,17 @@ public class LogConfig {
   }
 
   public static boolean initConfig(Config config) {
+    for (String id : config.getString(PROP_LOG_IDS, "de.denkunddachte").split(",")) {
+      IDS.add(id);
+    }
+
     try {
       for (Handler h : rootLogger.getHandlers()) {
         h.close();
         rootLogger.removeHandler(h);
       }
       rootLogger.setLevel(Level.INFO);
-      setLogLevel(ID, config.getProperty("log.globallevel", "INFO"));
+      setLogLevel(IDS, config.getProperty("log.globallevel", "INFO"));
 
       if (config.hasProperty("log.file")) {
         initLogFile(StringUtils.expandVariables(config.getProperty("log.file")), config.getProperty("log.level", "INFO"), config.getInt("log.size", 1000000),
@@ -75,6 +82,12 @@ public class LogConfig {
       return false;
     }
     return true;
+  }
+
+  private static void setLogLevel(Set<String> loggerNames, String level) {
+    for (String loggerName : loggerNames) {
+      setLogLevel(loggerName, level);
+    }
   }
 
   public static void setLogLevel(String loggerName, Level lvl) {
@@ -110,8 +123,10 @@ public class LogConfig {
 
   private static void addHandler(Handler handler) {
     rootLogger.addHandler(handler);
-    if (handler.getLevel().intValue() < Logger.getLogger(ID).getLevel().intValue()) {
-      Logger.getLogger(ID).setLevel(handler.getLevel());
+    for (String loggerName : IDS) {
+      if (handler.getLevel().intValue() < Logger.getLogger(loggerName).getLevel().intValue()) {
+        Logger.getLogger(loggerName).setLevel(handler.getLevel());
+      }
     }
   }
 
@@ -164,10 +179,10 @@ public class LogConfig {
   }
 
   private static void initConsole(String stdoutLevel, String stderrLevel, String fmtClass) throws SecurityException {
-    Level stdoutLvl = parseLevel(stdoutLevel);
-    Level stderrLvl = parseLevel(stderrLevel);
-    Formatter logfmt = null;
-    Formatter trcfmt = null;
+    Level     stdoutLvl = parseLevel(stdoutLevel);
+    Level     stderrLvl = parseLevel(stderrLevel);
+    Formatter logfmt    = null;
+    Formatter trcfmt    = null;
     if ("TraceFormatter".equals(fmtClass)) {
       logfmt = new TraceFormatter();
       trcfmt = new TraceFormatter();
@@ -180,10 +195,11 @@ public class LogConfig {
     }
 
     addHandler(new DualConsoleHandler(stdoutLvl, stderrLvl, logfmt, trcfmt));
-    if (stderrLvl.intValue() < Logger.getLogger(ID).getLevel().intValue()) {
-      Logger.getLogger(ID).setLevel(stderrLvl);
+    for (String loggerName : IDS) {
+      if (stderrLvl.intValue() < Logger.getLogger(loggerName).getLevel().intValue()) {
+        Logger.getLogger(loggerName).setLevel(stderrLvl);
+      }
     }
-
   }
 
   private static void mkPath(String abstractPath) {
@@ -201,10 +217,10 @@ public class LogConfig {
     public String format(LogRecord logrecord) {
       //
       // Formatiere Zeitstempel
-      String timeStamp = fmtDateTime.format(new Date(logrecord.getMillis()));
+      String        timeStamp = fmtDateTime.format(new Date(logrecord.getMillis()));
       //
       // Message zusammenbauen
-      StringBuilder buffer = new StringBuilder();
+      StringBuilder buffer    = new StringBuilder();
       // Header
       buffer.append(timeStamp);
       buffer.append(String.format("[%-7s] ", logrecord.getLevel()));
@@ -246,10 +262,10 @@ public class LogConfig {
     public String format(LogRecord logrecord) {
       //
       // Formatiere Zeitstempel
-      String timeStamp = fmtDateTime.format(new Date(logrecord.getMillis()));
+      String        timeStamp = fmtDateTime.format(new Date(logrecord.getMillis()));
       //
       // Message zusammenbauen
-      StringBuilder buffer = new StringBuilder(timeStamp);
+      StringBuilder buffer    = new StringBuilder(timeStamp);
       // Header
       buffer.append(String.format("[%-7s] %s ", logrecord.getLevel(), Thread.currentThread().getName()));
       buffer.append(logrecord.getSourceClassName());
