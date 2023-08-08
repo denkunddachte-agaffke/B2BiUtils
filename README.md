@@ -72,4 +72,4 @@ Depending on what you want to use, configure sections
 
 # Bugs/issues
 Please report issues, ideas, change requests etc. in [issues](https://github.com/denkunddachte-agaffke/B2BiUtils/issues).
-
+x
