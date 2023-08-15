@@ -67,11 +67,20 @@ public abstract class FileUtil {
   }
 
   public static String dirname(String path) {
+    return dirname(path, null);
+  }
+
+  public static String dirname(String path, String emptyPath) {
     if (path == null) {
-      return null;
+      return emptyPath;
     }
     path = path.replaceAll("([/\\\\])\\1+", "$1").replaceAll("[/\\\\]$", "");
-    return path.substring(0, path.replace('\\', '/').lastIndexOf('/'));
+    final int pos = path.replace('\\', '/').lastIndexOf('/');
+    if (pos > -1) {
+      return path.substring(0, pos);
+    } else {
+      return emptyPath;
+    }
   }
 
   public static File getWorkdir() {
