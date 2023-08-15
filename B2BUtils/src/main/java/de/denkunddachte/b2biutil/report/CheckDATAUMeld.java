@@ -15,8 +15,8 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
-import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.exception.ApiException;
+import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.utils.DataSourcePools;
 import de.denkunddachte.utils.FileUtil;
 import de.denkunddachte.utils.StringUtils;
@@ -52,17 +52,19 @@ M AAZS_GDA0  KPK005    KPK005SFAP.EDIGD.AKPK005.PABSPAEN.DRECOM             ABS_
 public class CheckDATAUMeld {
 
   private static final String                       SQL_SEL_RULE        = "SELECT FG_TRANS_ID, FG_DELIVERY_ID, CONSUMER, RCV_FILEPATTERN, SND_FILENAME, PROTOCOL, "
-      + "HOSTNAME, USERNAME, DISPOSITION, DATAU_ACK, CONVERT(NVARCHAR(MAX), T_LAST_ACTIVE, 21) T_LAST_ACTIVE, FILETYPE "
-      + "FROM AZ_FG_ALL_TRANSFERS_V WHERE PRODUCER=? AND (RCV_FILEPATTERN=? OR RCV_FILEPATTERN=?)";
+      + "HOSTNAME, USERNAME, DISPOSITION, DATAU_ACK, CONVERT(NVARCHAR(MAX), T_LAST_ACTIVE, 21) T_LAST_ACTIVE, FILETYPE, "
+      + "T_ENABLED , P_ENABLED , C_ENABLED , D_ENABLED " + "FROM AZ_FG_ALL_TRANSFERS_V WHERE PRODUCER=? AND (RCV_FILEPATTERN=? OR RCV_FILEPATTERN=?)";
   private static final String                       SQL_SEL_DPARAM      = "SELECT * FROM AZ_FG_DELIVERY_CD P WHERE P.FG_DELIVERY_ID=?";
   private static final String                       SQL_SEL_DATAU_RULES = "SELECT PRODUCER, RCV_FILEPATTERN, CONSUMER, SND_FILENAME, CONVERT(NVARCHAR(MAX), "
-      + "T_LAST_ACTIVE, 21) T_LAST_ACTIVE FROM AZ_FG_ALL_TRANSFERS_V WHERE DATAU_ACK=1";
-  private static final Map<String, TransferPattern> DATAU_PATTERNS      = new HashMap<>(250);
+      + "T_LAST_ACTIVE, 21) T_LAST_ACTIVE, PROTOCOL FROM AZ_FG_ALL_TRANSFERS_V WHERE DATAU_ACK=1 AND T_ENABLED=1 AND P_ENABLED=1 AND C_ENABLED=1 AND D_ENABLED=1";
+  private static final String                       SQL_SEL_FETCH_RULE  = "SELECT p.CUSTOMER_ID, f.FILEPATTERN, f.SCHEDULE_NAME FROM AZ_FG_FETCH_SFTP f "
+      + "JOIN AZ_FG_CUSTOMER p ON p.FG_CUST_ID = f.PRODUCER_ID WHERE f.ENABLED != 0 AND p.CUSTOMER_ID = ? AND f.FILEPATTERN LIKE ?";
+  private static final Map<String, TransferPattern> DATAU_PATTERNS      = new HashMap<>(300);
 
   static String createDatauFilename14(String filename) {
-    String[] q = filename.split("\\.");
-    String q2 = "  ";
-    String q3 = "  ";
+    String[] q  = filename.split("\\.");
+    String   q2 = "  ";
+    String   q3 = "  ";
     if (q.length > 3)
       q3 = q[3];
     if (q.length > 2)
@@ -94,14 +96,22 @@ public class CheckDATAUMeld {
     out.println();
   }
 
-  static void reportDeletion(PrintStream out, String producer, String rcvPattern, String consumer, String sndFilename, String lastActive) {
-    out.println("###### DATAU file pattern deleted #####");
-    out.println(
-        "File pattern on SFG is not found in DATAU. Please check file pattern and delete or remove DATAU flag only after confirmation of producer AND consumer:");
+  static void reportDeletion(PrintStream out, String producer, String rcvPattern, String consumer, String sndFilename, String lastActive, String protocol) {
+    if ("AWSS3".equals(protocol) || "BUBA".equals(protocol)) {
+      out.println("###### " + protocol + " DATAU file pattern #####");
+      out.println("File pattern using " + protocol
+          + " for delivery with DATAU ACK enabled detected on SFG. Please check file pattern and remove DATAU flag if this pattern is not managed by DATAU:");
+
+    } else {
+      out.println("###### DATAU file pattern deleted #####");
+      out.println(
+          "File pattern on SFG is not found in DATAU. Please check file pattern and delete or remove DATAU flag only after confirmation of producer AND consumer:");
+    }
     out.println(String.format("%-30s: %s", "Producer", producer));
     out.println(String.format("%-30s: %s", "Receive pattern", rcvPattern));
     out.println(String.format("%-30s: %s", "Consumer", consumer));
     out.println(String.format("%-30s: %s", "Send filename", sndFilename));
+    out.println(String.format("%-30s: %s", "Protocol", protocol));
     out.println(String.format("%-30s: %s", "Last active", lastActive));
     out.println("#######################################");
     out.println();
@@ -113,23 +123,24 @@ public class CheckDATAUMeld {
       System.err.println("usage: <DATAU meld file> <report file>");
       System.exit(1);
     }
-    File in = new File(args[0]);
-    File report = new File(args[1]);
-    ApiConfig cfg = ApiConfig.getInstance();
-    int records = 0;
-    int foundRule = 0;
-    int shortnameonly = 0;
-    int mismatch = 0;
-    int missing = 0;
-    int delete = 0;
-    int lineno = 0;
+    File      in            = new File(args[0]);
+    File      report        = new File(args[1]);
+    ApiConfig cfg           = ApiConfig.getInstance();
+    int       records       = 0;
+    int       foundRule     = 0;
+    int       shortnameonly = 0;
+    int       mismatch      = 0;
+    int       missing       = 0;
+    int       delete        = 0;
+    int       lineno        = 0;
     System.out.format("Process file %s [%s]%n", in, (new Date()).toString());
     try (RandomAccessFile raf = new RandomAccessFile(in, "r"); PrintStream out = new PrintStream(new FileOutputStream(report, false))) {
       DataSource ds = DataSourcePools.getPooledDataSource(cfg.getDbDriver(), cfg.getDbUrl(), cfg.getDbUser(), cfg.getDbPassword(), "sfgdb");
       try (Connection con = ds.getConnection();
           PreparedStatement pstmt = con.prepareStatement(SQL_SEL_RULE, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
           PreparedStatement pstmt2 = con.prepareStatement(SQL_SEL_DPARAM);
-          PreparedStatement pstmt3 = con.prepareStatement(SQL_SEL_DATAU_RULES)) {
+          PreparedStatement pstmt3 = con.prepareStatement(SQL_SEL_DATAU_RULES);
+          PreparedStatement pstmt4 = con.prepareStatement(SQL_SEL_FETCH_RULE)) {
         String line;
         while ((line = raf.readLine()) != null) {
           lineno++;
@@ -142,10 +153,10 @@ public class CheckDATAUMeld {
           pstmt.setString(2, tp.getRcvPattern());
           pstmt.setString(3, tp.getShortName());
           try (ResultSet rs = pstmt.executeQuery()) {
-            String consumer = null;
-            String sndFilename = null;
-            boolean found = false;
-            String msg = "NO RULE FOUND IN SFG!";
+            String  consumer    = null;
+            String  sndFilename = null;
+            boolean found       = false;
+            String  msg         = "NO RULE FOUND IN SFG!";
             while (rs.next()) {
               consumer = rs.getString("CONSUMER");
               sndFilename = FileUtil.basename(rs.getString("SND_FILENAME")).replaceAll("\\(\\+\\d\\)$", "");
@@ -176,27 +187,53 @@ public class CheckDATAUMeld {
                 sb.append(String.format("DATAU flag MISSING!%n"));
               }
               if (!tp.getConsumer().equalsIgnoreCase(consumer)) {
-                sb.append(String.format("CONSUMER MISMATCH: GOT: %s, expect: %s!%n", consumer, tp.getConsumer()));
+                sb.append(String.format("CONSUMER MISMATCH: SFG: %s, DATAU: %s!%n", consumer, tp.getConsumer()));
               }
               if (!tp.getSndFilename().equals(sndFilename)) {
-                sb.append(String.format("SEND FILENAME MISMATCH: GOT: %s, expect: %s!%n", sndFilename, tp.getSndFilename()));
+                sb.append(String.format("SEND FILENAME MISMATCH: SFG: %s, DATAU: %s!%n", sndFilename, tp.getSndFilename()));
               }
-              if (!StringUtils.isNullOrWhiteSpace(tp.getSndPath())) {
-                String path = FileUtil.dirname(rs.getString("SND_FILENAME"));
-                if (!path.equals(tp.getSndPath()) && !path.equals("/" + tp.getSndPath())) {
-                  sb.append(String.format("SEND PATH MISMATCH: GOT: %s, expect: %s!%n", path, tp.getSndPath()));
+
+              checkEnabled(rs, sb);
+              String path = "";
+              if (tp.isOutgoing()) {
+                path = FileUtil.dirname(rs.getString("SND_FILENAME"), "");
+                if (!path.equals(tp.getSndPath())) {
+                  sb.append(String.format("SEND PATH MISMATCH: SFG: %s, DATAU: %s!%n", path, tp.getSndPath()));
                 }
-              }
-              if ("ZIP".equals(tp.getCompress())) {
-                if (tp.isOutgoing() && !"gzip".equals(rs.getString("FILETYPE")) && !"zip".equals(rs.getString("FILETYPE"))) {
-                  sb.append(String.format("COMPRESSION %s REQUIRES FILETYPE %s: GOT: %s!%n", tp.getCompress(), "gzip or zip", rs.getString("FILETYPE")));
+                if ("ZIP".equals(tp.getCompress()) && !"gzip".equals(rs.getString("FILETYPE")) && !"zip".equals(rs.getString("FILETYPE"))) {
+                  sb.append(String.format("DATAU COMPRESSION %s REQUIRES FILETYPE %s: SFG: %s!%n", tp.getCompress(), "gzip or zip", rs.getString("FILETYPE")));
                 }
-                if (!tp.isOutgoing() && !"ungzip".equals(rs.getString("FILETYPE")) && !"entzip".equals(rs.getString("FILETYPE"))) {
-                  sb.append(String.format("COMPRESSION %s REQUIRES FILETYPE %s: GOT: %s!%n", tp.getCompress(), "ungzip or entzip", rs.getString("FILETYPE")));
+              } else {
+                if ("ZIP".equals(tp.getCompress()) && !"ungzip".equals(rs.getString("FILETYPE")) && !"entzip".equals(rs.getString("FILETYPE"))) {
+                  sb.append(
+                      String.format("DATAU COMPRESSION %s REQUIRES FILETYPE %s: SFG: %s!%n", tp.getCompress(), "ungzip or entzip", rs.getString("FILETYPE")));
                 }
 
-              }
-              if (!tp.isOutgoing()) {
+                pstmt4.setString(1, tp.getProducer());
+                pstmt4.setString(2, "%" + tp.getRcvPattern());
+                found = false;
+                try (ResultSet rs4 = pstmt4.executeQuery()) {
+                  while (rs4.next()) {
+                    if (tp.getRcvPattern().equals(FileUtil.basename(rs4.getString("FILEPATTERN")))) {
+                      path = FileUtil.dirname(rs4.getString("FILEPATTERN"), "");
+                      found = true;
+                      System.out.format("Fetch [%-10s] %-44s: %-80s [%s]%n", tp.getProducer(), rs.getString("RCV_FILEPATTERN"), rs4.getString("FILEPATTERN"),
+                          rs4.getString("SCHEDULE_NAME"));
+                      break;
+                    }
+                  }
+                }
+
+                if (!StringUtils.isNullOrWhiteSpace(tp.getSndPath())) {
+                  if (found) {
+                    if (!path.equals(tp.getSndPath())) {
+                      sb.append(String.format("FETCH PATH MISMATCH: SFG: %s, DATAU: %s!%n", path, tp.getSndPath()));
+                    }
+                  } else {
+                    sb.append(String.format("SFG FETCH RULE MISSING: DATAU send path: %s!%n", tp.getSndPath()));
+                  }
+                }
+
                 pstmt2.setInt(1, rs.getInt("FG_DELIVERY_ID"));
                 found = false;
                 try (ResultSet rs2 = pstmt2.executeQuery()) {
@@ -209,13 +246,13 @@ public class CheckDATAUMeld {
                     sb.append(String.format("NO DELIVERY PARAMS!%n"));
                   } else {
                     if (!tp.getRecFm().isEmpty() && !dcbOpts.contains("RECFM=" + tp.getRecFm())) {
-                      sb.append(String.format("DCBOPTS RECFM MISMATCH: DCBOPTS: %s, expect: RECFM=%s!%n", dcbOpts, tp.getRecFm()));
+                      sb.append(String.format("DCBOPTS RECFM MISMATCH: SFG: %s, DATAU: RECFM=%s!%n", dcbOpts, tp.getRecFm()));
                     }
                     if (tp.getRecSize() > 0 && !dcbOpts.contains("LRECL=" + tp.getRecSize())) {
-                      sb.append(String.format("DCBOPTS LRECL MISMATCH: DCBOPTS: %s, expect: LRECL=%s!%n", dcbOpts, tp.getRecSize()));
+                      sb.append(String.format("DCBOPTS LRECL MISMATCH: SFG: %s, DATAU: LRECL=%s!%n", dcbOpts, tp.getRecSize()));
                     }
                     if (tp.getBlockSize() > 0 && !dcbOpts.contains("BLKSIZE=" + tp.getBlockSize())) {
-                      sb.append(String.format("DCBOPTS BLKSIZE MISMATCH: DCBOPTS: %s, expect: BLKSIZE=%s!%n", dcbOpts, tp.getBlockSize()));
+                      sb.append(String.format("DCBOPTS BLKSIZE MISMATCH: SFG: %s, DATAU: BLKSIZE=%s!%n", dcbOpts, tp.getBlockSize()));
                     }
                   }
                 }
@@ -250,7 +287,7 @@ public class CheckDATAUMeld {
             } else {
               System.out.println("NOT FOUND IN DATAU!");
               reportDeletion(out, rs3.getString("PRODUCER"), rs3.getString("RCV_FILEPATTERN"), rs3.getString("CONSUMER"), rs3.getString("SND_FILENAME"),
-                  rs3.getString("T_LAST_ACTIVE"));
+                  rs3.getString("T_LAST_ACTIVE"), rs3.getString("PROTOCOL"));
               delete++;
             }
           }
@@ -265,8 +302,23 @@ public class CheckDATAUMeld {
         missing, shortnameonly, mismatch, delete);
   }
 
+  private static void checkEnabled(ResultSet rs, StringBuilder sb) throws SQLException {
+    if (!rs.getBoolean("T_ENABLED")) {
+      sb.append(String.format("SFG TRANSFER DISABLED!%n"));
+    }
+    if (!rs.getBoolean("P_ENABLED")) {
+      sb.append(String.format("SFG PRODUCER DISABLED!%n"));
+    }
+    if (!rs.getBoolean("C_ENABLED")) {
+      sb.append(String.format("SFG CONSUMER DISABLED!%n"));
+    }
+    if (!rs.getBoolean("D_ENABLED")) {
+      sb.append(String.format("SFG DELIVERY DISABLED!%n"));
+    }
+  }
+
   static class TransferPattern {
-    private static final int[] FIELD_WIDTH = new int[] { 1, 1, 1, 4, 6, 10, 6, 3, 44, 44, 40, 5, 5, 5, 3, 5, 5, 3, 15, 10 };//
+    private static final int[] FIELD_WIDTH = new int[] { 1, 1, 1, 4, 6, 10, 6, 3, 44, 44, 40, 5, 5, 5, 3, 5, 5, 3, 15, 10, 0 };//
     private static int         LINE_WIDTH  = 0;
     static {
       for (int i = 0; i < FIELD_WIDTH.length; i++) {
@@ -287,23 +339,6 @@ public class CheckDATAUMeld {
     boolean        outgoing;
     private String shortname;
     private int    lineno;
-
-    public TransferPattern(String direction, String producer, String consumer, String rcvPattern, String sndFilename, String sndPath, String compress,
-        String encrypt, String recFm, Integer recSize, Integer blockSize) {
-      super();
-      this.outgoing = "A".equals(direction);
-      this.producer = producer;
-      this.consumer = consumer;
-      this.rcvPattern = rcvPattern;
-      this.sndFilename = sndFilename;
-      this.sndPath = sndPath;
-      this.compress = compress;
-      this.encrypt = encrypt;
-      this.recFm = recFm;
-      this.recSize = recSize;
-      this.blockSize = blockSize;
-      this.shortname = createDatauFilename14(this.rcvPattern);
-    }
 
     public TransferPattern(int lineno, String meldSatz) throws IllegalArgumentException {
       this.lineno = lineno;
@@ -416,19 +451,25 @@ public class CheckDATAUMeld {
 
     private String[] splitLine(String line) throws IllegalArgumentException {
       int[] fieldLen = FIELD_WIDTH.clone();
-      int len = LINE_WIDTH;
+      int   len      = LINE_WIDTH;
       if (line.length() == 226) {
-        len = 226;
+        len = line.length();
         fieldLen[5] += 10;
+
       } else if (line.length() == 191 || line.length() == 201) {
         len = line.length();
         fieldLen[5] += (len == 191 ? 0 : 10);
         fieldLen[18] = 0;
         fieldLen[19] = 0;
+      } else if (line.length() > 226) {
+        fieldLen[5] += 10;
+        fieldLen[19] = 11;
+        fieldLen[20] = 15;
+
       }
 
       String[] result = new String[fieldLen.length + 1];
-      int offset = 0;
+      int      offset = 0;
       if (line.length() < len && line.length() < len - fieldLen[fieldLen.length - 1]) {
         throw new IllegalArgumentException("Line: " + lineno + " invalid line length: " + line.length() + ", expect: " + len + "!");
       }
@@ -450,16 +491,14 @@ public class CheckDATAUMeld {
       sb.append(String.format("%-30s: %s%n", "Producer", getProducer()));
       sb.append(String.format("%-30s: %s%n", "Receive pattern", getRcvPattern()));
       if (isOutgoing()) {
-        // sb.append(String.format("%-30s: %s %n", "Short filename", getShortName()));
         sb.append(String.format("%-30s: %s%n", "DATAU flag", "YES"));
       }
-      sb.append(String.format("%-30s: %s (Check if consumer name has changed on SFG)%n", "Consumer", getConsumer()));
+      sb.append(String.format("%-30s: %s%n", "Consumer", getConsumer()));
       sb.append(String.format("%-30s: %s%n", "Send filename", getSndFilename()));
-      sb.append(String.format("%-30s: %s (check other outgoing transfers to %s for path!)%n", "Send path", getSndPath(), getConsumer()));
-      sb.append(String.format("%-30s: %s (check other outgoing transfers to %s if partner uses other protocol like MBOX)%n", "Protocol",
-          (isOutgoing() ? (getConsumer().startsWith("RVS") ? "OFTP" : (getConsumer().startsWith("BUBA") ? "BUBA" : "SFTP")) : "C:D"), getConsumer()));
+      sb.append(String.format("%-30s: %s%n", "Send path", getSndPath()));
+      sb.append(String.format("%-30s: %s%n", "Protocol",
+          (isOutgoing() ? (getConsumer().startsWith("RVS") ? "OFTP" : (getConsumer().startsWith("BUBA") ? "BUBA" : "SFTP")) : "C:D")));
       sb.append(String.format("%-30s: %s%n", "Processing", (getCompress().contains("ZIP") ? (isOutgoing() ? "zip" : "unzip") : "")));
-      // if (!isOutgoing()) {
       StringBuilder sb2 = new StringBuilder("DSORG=PS");
       if (getRecSize() != null && getRecSize() > 0) {
         sb2.append(",LRECL=").append(getRecSize());
@@ -471,8 +510,6 @@ public class CheckDATAUMeld {
         sb2.append(",RECFM=").append(getRecFm());
       }
       sb.append(String.format("%-30s: %s%n", "DCBOPTS", sb2.toString()));
-
-      // }
       return sb.toString();
     }
 
