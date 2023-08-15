@@ -27,12 +27,15 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import de.denkunddachte.ft.Exportable;
 
 public class LDAPUser implements Exportable {
+  private static final Logger LOGGER = Logger.getLogger(LDAPUser.class.getName());
   private String                    dn;
   private String                    cn;
   private String                    sn;
@@ -104,7 +107,7 @@ public class LDAPUser implements Exportable {
 
   public void setCn(String cn) {
     if (this.cn != null && !this.cn.equals(cn)) {
-      throw new IllegalArgumentException("Common name mismatch (current=" + this.cn + ", new=" + cn + ")!");
+      LOGGER.log(Level.WARNING, "Overwriting common name {0} with {1})!", new Object[] {this.cn, cn});
     }
     this.cn = cn;
   }
