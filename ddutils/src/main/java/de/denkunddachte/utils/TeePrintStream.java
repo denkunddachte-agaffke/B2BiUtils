@@ -22,75 +22,74 @@ import java.io.PrintStream;
 
 public class TeePrintStream extends PrintStream {
 
-	protected PrintStream copy;
+  protected PrintStream copy;
 
-	public TeePrintStream(PrintStream original, PrintStream copy, String encoding, boolean autoFlush) throws IOException {
-		super(original, autoFlush, encoding);
-		this.copy = copy;
-	}
+  public TeePrintStream(PrintStream original, PrintStream copy, String encoding, boolean autoFlush) throws IOException {
+    super(original, autoFlush, encoding);
+    this.copy = copy;
+  }
 
-	public TeePrintStream(PrintStream original, PrintStream copy, boolean autoFlush) throws IOException {
-		super(original, autoFlush);
-		this.copy = copy;
-	}
+  public TeePrintStream(PrintStream original, PrintStream copy, boolean autoFlush) throws IOException {
+    super(original, autoFlush);
+    this.copy = copy;
+  }
 
-	public TeePrintStream(PrintStream original, PrintStream copy) throws IOException {
-		this(original, copy, false);
-	}
+  public TeePrintStream(PrintStream original, PrintStream copy) throws IOException {
+    this(original, copy, false);
+  }
 
-	public TeePrintStream(PrintStream original, String fileName, boolean append, String encoding, boolean autoFlush)
-			throws IOException {
-		this(original, new PrintStream(new FileOutputStream(fileName, append), autoFlush, encoding), encoding, autoFlush);
-	}
+  public TeePrintStream(PrintStream original, String fileName, boolean append, String encoding, boolean autoFlush) throws IOException {
+    this(original, new PrintStream(new FileOutputStream(fileName, append), autoFlush, encoding), encoding, autoFlush);
+  }
 
-	public TeePrintStream(PrintStream original, String fileName, boolean append, boolean autoFlush) throws IOException {
-		this(original, new PrintStream(new FileOutputStream(fileName, append), autoFlush), autoFlush);
-	}
+  public TeePrintStream(PrintStream original, String fileName, boolean append, boolean autoFlush) throws IOException {
+    this(original, new PrintStream(new FileOutputStream(fileName, append), autoFlush), autoFlush);
+  }
 
-	public TeePrintStream(PrintStream original, String fileName, boolean append) throws IOException {
-		this(original, fileName, append, false);
-	}
+  public TeePrintStream(PrintStream original, String fileName, boolean append) throws IOException {
+    this(original, fileName, append, false);
+  }
 
-	public TeePrintStream(PrintStream original, String fileName) throws IOException {
-		this(original, fileName, false, false);
-	}
+  public TeePrintStream(PrintStream original, String fileName) throws IOException {
+    this(original, fileName, false, false);
+  }
 
-	@Override
-	public boolean checkError() {
-		return super.checkError() || copy.checkError();
-	}
+  @Override
+  public boolean checkError() {
+    return super.checkError() || copy.checkError();
+  }
 
-	@Override
-	public void write(int b) {
-		copy.write(b);
-		super.write(b);
-	}
+  @Override
+  public void write(int b) {
+    copy.write(b);
+    super.write(b);
+  }
 
-	@Override
-	public void write(byte[] buf) throws IOException {
-		copy.write(buf);
-		super.write(buf);
-	}
+  @Override
+  public void write(byte[] buf) throws IOException {
+    copy.write(buf);
+    super.write(buf);
+  }
 
-	@Override
-	public void write(byte[] buf, int off, int len) {
-		copy.write(buf, off, len);
-		super.write(buf, off, len);
-	}
+  @Override
+  public void write(byte[] buf, int off, int len) {
+    copy.write(buf, off, len);
+    super.write(buf, off, len);
+  }
 
-	@Override
-	public void close() {
-		close(copy);
-		close(super.out);
-	}
-	
-	private void close(OutputStream os) {
-		if (!os.equals(System.out) && !os.equals(System.err)) {
-			try {
-				os.close();
-			} catch (IOException e) {
-				// IGNORE
-			}
-		}
-	}
+  @Override
+  public void close() {
+    close(copy);
+    close(super.out);
+  }
+
+  private void close(OutputStream os) {
+    if (!os.equals(System.out) && !os.equals(System.err)) {
+      try {
+        os.close();
+      } catch (IOException e) {
+        // IGNORE
+      }
+    }
+  }
 }
