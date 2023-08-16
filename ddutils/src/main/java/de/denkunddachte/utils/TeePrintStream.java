@@ -38,8 +38,7 @@ public class TeePrintStream extends PrintStream {
     this(original, copy, false);
   }
 
-  public TeePrintStream(PrintStream original, String fileName, boolean append, String encoding, boolean autoFlush)
-      throws IOException {
+  public TeePrintStream(PrintStream original, String fileName, boolean append, String encoding, boolean autoFlush) throws IOException {
     this(original, new PrintStream(new FileOutputStream(fileName, append), autoFlush, encoding), encoding, autoFlush);
   }
 
@@ -83,7 +82,7 @@ public class TeePrintStream extends PrintStream {
     close(copy);
     close(super.out);
   }
-  
+
   private void close(OutputStream os) {
     if (!os.equals(System.out) && !os.equals(System.err)) {
       try {

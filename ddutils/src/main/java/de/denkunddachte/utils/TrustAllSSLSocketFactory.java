@@ -45,7 +45,7 @@ public class TrustAllSSLSocketFactory extends SocketFactory {
   public static SocketFactory getDefault() {
     return new TrustAllSSLSocketFactory();
   }
-  
+
   @Override
   public Socket createSocket(String host, int port) throws IOException, UnknownHostException {
     return sf.createSocket(host, port);
@@ -57,8 +57,7 @@ public class TrustAllSSLSocketFactory extends SocketFactory {
   }
 
   @Override
-  public Socket createSocket(String host, int port, InetAddress localHost, int localPort)
-      throws IOException, UnknownHostException {
+  public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException, UnknownHostException {
     return sf.createSocket(host, port, localHost, localPort);
   }
 
