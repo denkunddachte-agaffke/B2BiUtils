@@ -12,6 +12,7 @@ import de.denkunddachte.enums.OSType;
 public class TransferRule extends AbstractLoadRecord {
   private String                  producer;
   private String                  filePattern;
+  private String                  rcvPath;
   private boolean                 datauAck;
   private String                  comment;
   private String                  additionalInfo;
@@ -62,6 +63,15 @@ public class TransferRule extends AbstractLoadRecord {
 
   public String getFilePattern() {
     return filePattern;
+  }
+  
+
+  public String getRcvPath() {
+    return rcvPath;
+  }
+
+  public void setRcvPath(String rcvPath) {
+    this.rcvPath = rcvPath;
   }
 
   public boolean addDeliveryRule(DeliveryRule rule) {

@@ -101,6 +101,11 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
       }
     }
 
+    // reinitialize logger (settings might have changed in config and/or commandline)
+    LogConfig.initConfig();
+
+    LOG.log(Level.FINE, "Start {0} {1}", new Object[] {OPTIONS.getProgramName(), String.join(" ", args)});
+
     LOG.log(Level.FINER, "Populate ApiConfig from Config: {0}", cfg.getLoadedResources());
     LOG.log(Level.FINEST, "Map: {0}", cfg.getStringMap(null));
     ApiConfig apicfg = ApiConfig.getInstance(cfg.getStringMap(null));
@@ -134,8 +139,6 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
       }
       System.exit(0);
     }
-    // reinitialize logger (settings might have changed in config and/or commandline)
-    LogConfig.initConfig();
     // cfg.setCommandLine(cmdLine);
 
     //toMap(cfg.getString(Props.PROP_SITE_PREFIX_MAP), sitePrefixMap);

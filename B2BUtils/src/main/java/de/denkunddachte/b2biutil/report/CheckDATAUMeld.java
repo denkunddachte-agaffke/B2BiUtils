@@ -59,6 +59,7 @@ public class CheckDATAUMeld {
       + "T_LAST_ACTIVE, 21) T_LAST_ACTIVE, PROTOCOL FROM AZ_FG_ALL_TRANSFERS_V WHERE DATAU_ACK=1 AND T_ENABLED=1 AND P_ENABLED=1 AND C_ENABLED=1 AND D_ENABLED=1";
   private static final String                       SQL_SEL_FETCH_RULE  = "SELECT p.CUSTOMER_ID, f.FILEPATTERN, f.SCHEDULE_NAME FROM AZ_FG_FETCH_SFTP f "
       + "JOIN AZ_FG_CUSTOMER p ON p.FG_CUST_ID = f.PRODUCER_ID WHERE f.ENABLED != 0 AND p.CUSTOMER_ID = ? AND f.FILEPATTERN LIKE ?";
+  private static final String                       SQL_SEL_PASV_PRODUCER  = "SELECT COUNT(*) FROM AZ_FG_FETCH_SFTP f JOIN AZ_FG_CUSTOMER p ON p.FG_CUST_ID = f.PRODUCER_ID WHERE f.ENABLED != 0 AND p.CUSTOMER_ID = ?";
   private static final Map<String, TransferPattern> DATAU_PATTERNS      = new HashMap<>(300);
 
   static String createDatauFilename14(String filename) {
@@ -140,7 +141,8 @@ public class CheckDATAUMeld {
           PreparedStatement pstmt = con.prepareStatement(SQL_SEL_RULE, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
           PreparedStatement pstmt2 = con.prepareStatement(SQL_SEL_DPARAM);
           PreparedStatement pstmt3 = con.prepareStatement(SQL_SEL_DATAU_RULES);
-          PreparedStatement pstmt4 = con.prepareStatement(SQL_SEL_FETCH_RULE)) {
+          PreparedStatement pstmt4 = con.prepareStatement(SQL_SEL_FETCH_RULE);
+          PreparedStatement pstmt5 = con.prepareStatement(SQL_SEL_PASV_PRODUCER)) {
         String line;
         while ((line = raf.readLine()) != null) {
           lineno++;
@@ -209,21 +211,30 @@ public class CheckDATAUMeld {
                       String.format("DATAU COMPRESSION %s REQUIRES FILETYPE %s: SFG: %s!%n", tp.getCompress(), "ungzip or entzip", rs.getString("FILETYPE")));
                 }
 
-                pstmt4.setString(1, tp.getProducer());
-                pstmt4.setString(2, "%" + tp.getRcvPattern());
-                found = false;
-                try (ResultSet rs4 = pstmt4.executeQuery()) {
-                  while (rs4.next()) {
-                    if (tp.getRcvPattern().equals(FileUtil.basename(rs4.getString("FILEPATTERN")))) {
-                      path = FileUtil.dirname(rs4.getString("FILEPATTERN"), "");
-                      found = true;
-                      System.out.format("Fetch [%-10s] %-44s: %-80s [%s]%n", tp.getProducer(), rs.getString("RCV_FILEPATTERN"), rs4.getString("FILEPATTERN"),
-                          rs4.getString("SCHEDULE_NAME"));
-                      break;
+                pstmt5.setString(1, tp.getProducer());
+                boolean passiveProducer = false;
+                try (ResultSet rs5 = pstmt5.executeQuery()) {
+                  rs5.next();
+                  passiveProducer = rs5.getInt(1) > 0;
+                }
+
+                if (passiveProducer) {
+                  pstmt4.setString(1, tp.getProducer());
+                  pstmt4.setString(2, "%" + tp.getRcvPattern());
+                  found = false;
+                  try (ResultSet rs4 = pstmt4.executeQuery()) {
+                    while (rs4.next()) {
+                      if (tp.getRcvPattern().equals(FileUtil.basename(rs4.getString("FILEPATTERN")))) {
+                        path = FileUtil.dirname(rs4.getString("FILEPATTERN"), "");
+                        found = true;
+                        System.out.format("Fetch [%-10s] %-44s: %-80s [%s]%n", tp.getProducer(), rs.getString("RCV_FILEPATTERN"), rs4.getString("FILEPATTERN"),
+                            rs4.getString("SCHEDULE_NAME"));
+                        break;
+                      }
                     }
                   }
                 }
-
+                
                 if (!StringUtils.isNullOrWhiteSpace(tp.getSndPath())) {
                   if (found) {
                     if (!path.equals(tp.getSndPath())) {
@@ -232,6 +243,8 @@ public class CheckDATAUMeld {
                   } else {
                     sb.append(String.format("SFG FETCH RULE MISSING: DATAU send path: %s!%n", tp.getSndPath()));
                   }
+                } else if (passiveProducer) {
+                  sb.append(String.format("PRODUCER CONNECTION IS PASSIVE SFTP BUT DATAU RCV PATH IS EMPTY!%n"));
                 }
 
                 pstmt2.setInt(1, rs.getInt("FG_DELIVERY_ID"));

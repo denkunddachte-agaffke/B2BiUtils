@@ -68,6 +68,7 @@ public final class Props {
   public static final String PROP_DUP_DELIVERYPARMS       = "sft.duplicateDeliveryParamsIfMissing";
   public static final String PROP_FILL_DESCRIPTION        = "sft.transfer.description.action";
   public static final String PROP_FILL_ADDINFO            = "sft.transfer.additionalinfo.action";
+  public static final String PROP_DEFAULT_FETCH_SCHEDULE  = "sft.fetch.defaultSchedule";
   public static final String PROP_SSHKEYS                 = "sshkeys";
   public static final String PROP_PERMISSIONS             = "permissions";
   public static final String PROP_EXPORT_NULL             = "export.includeNullValues";

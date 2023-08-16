@@ -158,16 +158,20 @@ public class DatauMeldesatzInput extends LoaderInput {
   }
 
   private TransferRule parseRule(int line) throws TemplateException {
-    TransferRule t          = null;
-    LoadAction   action     = LoadAction.byCode(getNext(1));
-    boolean      outgoing   = "A".equals(getNext(1));
-    String       intPartner = getPartnerId(getNext(10));
-    String       extPartner = getPartnerId(getNext(r.length() == 216 || r.length() == 201 || r.length() == 217 ? 10 : 20));
-    String       producer   = (outgoing ? intPartner : extPartner);
-    String       consumer   = (outgoing ? extPartner : intPartner);
-    String       tnidom     = getNext(6);
-    String       medart     = getNext(3);
-    t = new TransferRule(action, line, producer, getNext(44));
+    TransferRule t           = null;
+    LoadAction   action      = LoadAction.byCode(getNext(1));
+    boolean      outgoing    = "A".equals(getNext(1));
+    String       intPartner  = getPartnerId(getNext(10));
+    String       extPartner  = getPartnerId(getNext(r.length() == 216 || r.length() == 201 || r.length() == 217 ? 10 : 20));
+    String       producer    = (outgoing ? intPartner : extPartner);
+    String       consumer    = (outgoing ? extPartner : intPartner);
+    String       tnidom      = getNext(6);
+    String       medart      = getNext(3);
+    String       filepattern = getNext(44);
+    String       destname    = getNext(44);
+    String       path        = getNext(40);
+
+    t = new TransferRule(action, line, producer, filepattern);
     t.setDatauAck(outgoing); // DATAU ACK only for outgoing transfers
     t.setAdditionalInfo(String.format("DATAU Meldesatz refNum=%d, date=%s, line=%d, TNIDOM=%s.", refNum, fmtIsoDate.format(batchDate), line, tnidom));
     Endpoint ep = null;
@@ -189,11 +193,14 @@ public class DatauMeldesatzInput extends LoaderInput {
       ep = new MboxEndpoint();
       break;
     }
-    String destname = getNext(44);
-    String destPath = getNext(40);
-    if (!destPath.isEmpty()) {
-      destname = destPath + (destPath.endsWith("/") ? "" : "/") + destname;
+    if (!path.isEmpty()) {
+      if (medart.charAt(2) == 'E') {
+        t.setRcvPath(path);
+      } else {
+        destname = path + (path.endsWith("/") ? "" : "/") + destname;
+      }
     }
+
     String compression = getNext(5);
     String encryption  = getNext(5);
     getNext(5); // reserve

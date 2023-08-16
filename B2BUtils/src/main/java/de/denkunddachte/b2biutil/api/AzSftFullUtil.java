@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -20,14 +21,9 @@ import java.util.stream.Collectors;
 
 import javax.naming.NamingException;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.json.JSONObject;
 
-import de.denkunddachte.jpa.SfgEntityManager;
-import de.denkunddachte.jpa.az.FgCustomer;
-import de.denkunddachte.jpa.az.FgFetchRule;
-import de.denkunddachte.jpa.az.FgRules;
-import de.denkunddachte.jpa.az.FgTransfer;
-import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.b2biutil.AbstractConsoleApp;
 import de.denkunddachte.b2biutil.loader.B2BiBulkLoader;
 import de.denkunddachte.b2biutil.loader.CDNetmapsHandler;
@@ -47,10 +43,16 @@ import de.denkunddachte.b2biutil.loader.model.Partner;
 import de.denkunddachte.b2biutil.loader.model.TransferRule;
 import de.denkunddachte.exception.ApiException;
 import de.denkunddachte.exception.B2BLoadException;
+import de.denkunddachte.jpa.SfgEntityManager;
+import de.denkunddachte.jpa.az.FgCustomer;
+import de.denkunddachte.jpa.az.FgFetchRule;
+import de.denkunddachte.jpa.az.FgRules;
+import de.denkunddachte.jpa.az.FgTransfer;
 import de.denkunddachte.ldap.FtLDAP;
 import de.denkunddachte.ldap.LDAPUser;
 import de.denkunddachte.sfgapi.RoutingChannel;
 import de.denkunddachte.sfgapi.TradingPartner;
+import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.utils.CommandLineParser;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.ParsedCommandLine;
@@ -162,8 +164,8 @@ public class AzSftFullUtil extends AbstractConsoleApp {
   // START list partner
   private void listPartners(String globPattern, boolean caseSensitive, boolean showDetails) throws ApiException, NamingException {
     final Map<String, JSONObject> ids = new HashMap<>(500);
-    EntityManager                     em          = SfgEntityManager.instance().getEntityManager();
-    int cnt = 0;
+    EntityManager                 em  = SfgEntityManager.instance().getEntityManager();
+    int                           cnt = 0;
     for (FgCustomer fc : FgCustomer.findAll(globPattern, !caseSensitive, false, em)) {
       JSONObject o = new JSONObject();
       cnt++;
@@ -174,18 +176,19 @@ public class AzSftFullUtil extends AbstractConsoleApp {
       if (fc.isProducer()) {
         o.put("fgProdRules", FgRules.findPatterns(fc.getCustomerId(), null, false, em).size());
         List<FgFetchRule> fetchrules = FgFetchRule.findByProducer(fc.getFgCustId(), em);
-        //fetchrules.forEach(r -> em.detach(r));
+        // fetchrules.forEach(r -> em.detach(r));
         o.put("fgFetchAWS", fetchrules.stream().filter(fr -> "AWSS3".equals(fr.getFgFetchRuleId().getType())).count());
         o.put("fgFetchSFTP", fetchrules.stream().filter(fr -> "SFTP".equals(fr.getFgFetchRuleId().getType())).count());
-        o.put("fgFetchDrmOe", fetchrules.stream().filter(fr -> "DRM".equals(fr.getFgFetchRuleId().getType()) || "OE".equals(fr.getFgFetchRuleId().getType())).count());
+        o.put("fgFetchDrmOe",
+            fetchrules.stream().filter(fr -> "DRM".equals(fr.getFgFetchRuleId().getType()) || "OE".equals(fr.getFgFetchRuleId().getType())).count());
       }
       if (fc.isConsumer()) {
-        List<FgRules> cr  = FgRules.findByConsumer(fc.getCustomerId(), false, em);
-        //cr.forEach(r -> em.detach(r));
+        List<FgRules> cr = FgRules.findByConsumer(fc.getCustomerId(), false, em);
+        // cr.forEach(r -> em.detach(r));
         o.put("fgConsRules", cr.size());
         o.put("fgConsProto", cr.stream().map(FgRules::getProtocol).collect(Collectors.toSet()));
       }
-      //em.detach(fc);
+      // em.detach(fc);
       ids.put(fc.getCustomerId(), o);
       LOG.log(Level.FINE, "Found FG customer {0}.", fc.getCustomerId());
       exportArtifact(fc);
@@ -215,7 +218,7 @@ public class AzSftFullUtil extends AbstractConsoleApp {
     System.out.println("Found " + cnt + " SFG trading partners.");
     cnt = 0;
     ApiConfig apicfg = ApiConfig.getInstance();
-    FtLDAP           ldap = new FtLDAP(apicfg);
+    FtLDAP    ldap   = new FtLDAP(apicfg);
     for (LDAPUser u : ldap.getUsers(apicfg.getLdapBase(), globPattern, caseSensitive)) {
       cnt++;
       JSONObject o = ids.get(u.getCn());
@@ -229,11 +232,11 @@ public class AzSftFullUtil extends AbstractConsoleApp {
       o.put("ldapPassword", u.getPassword() != null);
       o.put("ldapSshKeys", u.getSshPublicKeys().size());
     }
-    CDNetmapsHandler nmh  = CDNetmapsHandler.getInstance();
+    CDNetmapsHandler nmh = CDNetmapsHandler.getInstance();
     for (String nm : nmh.getAllNetmaps()) {
       System.out.println("NM: " + nm);
     }
-    
+
     System.out.println("Total IDs: " + ids.size());
   }
 
@@ -400,6 +403,13 @@ public class AzSftFullUtil extends AbstractConsoleApp {
       createChangeReport(loader, cfg.getProperty(Props.PROP_REPORT));
       result.printResult(System.out);
     } catch (TemplateException | ApiException | B2BLoadException e) {
+      if (cfg.hasProperty(Props.PROP_REPORT)) {
+        StringBuilder sb = new StringBuilder("Dear team,\n\nthe processing of DATAU Meldesatz file failed:\n\n");
+        sb.append("File      : ").append(filePath).append('\n');
+        sb.append("Exception : ").append(e.getMessage()).append('\n');
+        sb.append("Stacktrace:\n").append(ExceptionUtils.getStackTrace(e)).append('\n');
+        sendMail(cfg.getString(Props.PROP_REPORT), "DATAU Meldesatz load FAILED!", sb.toString());
+      }
       throw e;
     } catch (Exception e) {
       throw new B2BLoadException(e);
@@ -410,66 +420,66 @@ public class AzSftFullUtil extends AbstractConsoleApp {
     if (!loader.getChangeSet().isCollect()) {
       return;
     }
-    ChangeReport rpt = new ChangeReport(loader.getChangeSet());
-    if (output == null) {
-      System.out.format("Change report for: %s%n", loader.getLoaderInput().getInputfile());
-      System.out.format("Created: %s%n", (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")).format(new Date()));
-      System.out.println("--------------------------------------------------------------------");
-      System.out.println();
-      rpt.printReport(System.out);
-      System.out.println();
-      loader.getResult().printResult(System.out);
-    } else if (output.contains("@")) {
-      Properties mailprops = new Properties();
-      mailprops.put("mail.smtp.auth", cfg.getProperty("mail.smtp.auth", "false"));
-      mailprops.put("mail.smtp.starttls.enable", cfg.getProperty("mail.smtp.starttls.enable", "false"));
-      mailprops.put("mail.smtp.host", cfg.getProperty("mail.smtp.host", "localhost"));
-      mailprops.put("mail.smtp.port", cfg.getProperty("mail.smtp.port", "25"));
-      Authenticator authenticator = null;
-      if (cfg.getBoolean("mail.smtp.auth")) {
-        authenticator = new Authenticator() {
-          protected PasswordAuthentication getPasswordAuthentication() {
-            return new PasswordAuthentication(cfg.getProperty("mail.smtp.auth.user"), cfg.getProperty("mail.smtp.auth.password"));
-          }
-        };
-      }
-      Session session = Session.getInstance(mailprops, authenticator);
-      try {
-        Message message = new MimeMessage(session);
-        message.setFrom(new InternetAddress(cfg.getProperty("mail.from", "noreply@localhost")));
-        message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(output));
-        message.setSubject("Changereport for DATAU Meldesatz file " + loader.getLoaderInput().getInputfile());
+    ChangeReport          rpt = new ChangeReport(loader.getChangeSet());
 
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        PrintStream           ps  = new PrintStream(bos);
-        ps.format("Change report for: %s%n", loader.getLoaderInput().getInputfile());
-        ps.format("Created: %s%n", (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")).format(new Date()));
-        ps.println("--------------------------------------------------------------------");
-        rpt.printReport(ps);
-        ps.println();
-        loader.getResult().printResult(ps);
-        ps.flush();
-        message.setContent("<pre>" + bos.toString() + "</pre>", "text/html");
-        Transport.send(message);
-        System.out.println("Email Message Sent Successfully");
-      } catch (MessagingException e) {
-        throw new RuntimeException(e);
-      }
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    PrintStream           ps  = new PrintStream(bos);
+    ps.format("Change report for: %s%n", loader.getLoaderInput().getInputfile());
+    ps.format("Created: %s%n", (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")).format(new Date()));
+    ps.println("--------------------------------------------------------------------");
+    if (cfg.getBoolean(Props.PROP_DRY_RUN)) {
+      ps.println();
+      ps.println("### DRY-RUN MODE (no changes where made to the database) ###");
+      ps.println();
+    }
+    rpt.printReport(ps);
+    ps.println();
+    loader.getResult().printResult(ps);
+    ps.flush();
+
+    if (output == null) {
+      System.out.println(bos.toString());
+    } else if (output.contains("@")) {
+      String subj = String.format("Changereport for DATAU Meldesatz file %s%s", loader.getLoaderInput().getInputfile().getName(),
+          (cfg.getBoolean(Props.PROP_DRY_RUN) ? " [DRY-RUN]" : ""));
+      sendMail(output, subj, bos.toString());
     } else {
-      try (PrintStream ps = new PrintStream(new FileOutputStream(output))) {
-        ps.format("Change report for: %s%n", loader.getLoaderInput().getInputfile());
-        ps.format("Created: %s%n", (new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")).format(new Date()));
-        ps.println("--------------------------------------------------------------------");
-        rpt.printReport(ps);
-        ps.println();
-        loader.getResult().printResult(ps);
-        ps.flush();
+      try (OutputStream os = new FileOutputStream(output)) {
+        os.write(bos.toByteArray());
       } catch (IOException e) {
         System.err.format("Could not write report file %s!%n", output);
         e.printStackTrace();
       }
     }
+  }
 
+  private void sendMail(String mailto, String subject, String body) {
+    Properties mailprops = new Properties();
+    mailprops.put("mail.smtp.auth", cfg.getProperty("mail.smtp.auth", "false"));
+    mailprops.put("mail.smtp.starttls.enable", cfg.getProperty("mail.smtp.starttls.enable", "false"));
+    mailprops.put("mail.smtp.host", cfg.getProperty("mail.smtp.host", "localhost"));
+    mailprops.put("mail.smtp.port", cfg.getProperty("mail.smtp.port", "25"));
+    Authenticator authenticator = null;
+    if (cfg.getBoolean("mail.smtp.auth")) {
+      authenticator = new Authenticator() {
+        protected PasswordAuthentication getPasswordAuthentication() {
+          return new PasswordAuthentication(cfg.getProperty("mail.smtp.auth.user"), cfg.getProperty("mail.smtp.auth.password"));
+        }
+      };
+    }
+    Session session = Session.getInstance(mailprops, authenticator);
+    try {
+      Message message = new MimeMessage(session);
+      message.setFrom(new InternetAddress(cfg.getProperty("mail.from", "noreply@localhost")));
+      message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(mailto));
+      message.setSubject(subject);
+
+      message.setContent("<pre>" + body + "</pre>", "text/html");
+      Transport.send(message);
+      System.out.println("Email Message Sent Successfully");
+    } catch (MessagingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private void validateImport(String filePath, String format) throws TemplateException {

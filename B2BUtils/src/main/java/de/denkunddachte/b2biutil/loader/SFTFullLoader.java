@@ -14,6 +14,8 @@ import de.denkunddachte.jpa.az.FgDeliveryCd;
 import de.denkunddachte.jpa.az.FgDeliveryMbox;
 import de.denkunddachte.jpa.az.FgDeliveryOftp;
 import de.denkunddachte.jpa.az.FgDeliverySftp;
+import de.denkunddachte.jpa.az.FgFetchAwsS3;
+import de.denkunddachte.jpa.az.FgFetchSftp;
 import de.denkunddachte.jpa.az.FgFiletype;
 import de.denkunddachte.jpa.az.FgTransfer;
 import de.denkunddachte.b2biutil.api.Props;
@@ -43,6 +45,8 @@ import de.denkunddachte.utils.StringUtils;
 
 public class SFTFullLoader extends B2BiBulkLoader {
   public static final String DELIVERY_TEMPLATE_PATTERN = "DELIVERY_TEMPLATE";
+  public static final String FETCH_TEMPLATE_PATTERN    = "FETCH_TEMPLATE";
+
   static final Logger        LOGGER                    = Logger.getLogger(SFTFullLoader.class.getName());
   protected boolean          closeEm;
   protected SfgEntityManager sfgEm;
@@ -226,6 +230,7 @@ public class SFTFullLoader extends B2BiBulkLoader {
         error(t, "Pattern does not exist exist: " + t.getId());
       } else {
         removeItem(fgt, changeset);
+        producer.removeFgTransfer(fgt);
         sfgEm.remove(fgt);
         result.addResult(t, Outcome.DELETED);
       }
@@ -247,19 +252,25 @@ public class SFTFullLoader extends B2BiBulkLoader {
     changeset.update(producer);
   }
 
-  private void removeItem(AbstractSfgObject item, ChangeSet changeset) throws B2BLoadException {
+  protected void removeItem(AbstractSfgObject item, ChangeSet changeset) throws B2BLoadException {
     switch (item.getClass().getName()) {
-    case "de.denkunddachte.az.sft.FgCustomer":
+    case "de.denkunddachte.jpa.az.FgCustomer":
       for (FgTransfer t : ((FgCustomer) item).getFgTransfers()) {
         removeItem(t, changeset);
       }
+      for (FgFetchSftp f : ((FgCustomer) item).getFgFetchTransfers()) {
+        removeItem(f, changeset);
+      }
+      for (FgFetchAwsS3 f : ((FgCustomer) item).getFgAwsS3FetchTransfers()) {
+        removeItem(f, changeset);
+      }
       break;
-    case "de.denkunddachte.az.sft.FgTransfer":
+    case "de.denkunddachte.jpa.az.FgTransfer":
       for (FgDelivery d : ((FgTransfer) item).getFgDeliveries()) {
         removeItem(d, changeset);
       }
       break;
-    case "de.denkunddachte.az.sft.FgDelivery":
+    case "de.denkunddachte.jpa.az.FgDelivery":
       removeItem(((FgDelivery) item).getDeliveryParams(), changeset);
       break;
     default:
