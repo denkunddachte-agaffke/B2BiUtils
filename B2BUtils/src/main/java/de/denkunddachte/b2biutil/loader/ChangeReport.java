@@ -28,7 +28,7 @@ public class ChangeReport {
       os.println();
     }
 
-    for (String type : new String[] { "AZ_FG_CUSTOMER", "AZ_FG_TRANSFER", "AZ_FG_DELIVERY" }) {
+    for (String type : new String[] { "AZ_FG_CUSTOMER", "AZ_FG_FETCH_SFTP", "AZ_FG_FETCH_AWSS3", "AZ_FG_TRANSFER", "AZ_FG_DELIVERY" }) {
       if (types.contains(type)) {
         os.format("%s:%n", type);
         os.println(new String(new char[type.length() + 1]).replace('\0', '-'));

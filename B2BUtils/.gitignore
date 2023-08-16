@@ -12,3 +12,7 @@
 /DB
 /tmp
 
+# local:
+/BP
+/*.cfg
+/*.tgz
