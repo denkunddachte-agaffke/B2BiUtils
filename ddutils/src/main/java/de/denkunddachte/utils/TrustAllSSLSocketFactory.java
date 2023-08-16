@@ -30,61 +30,60 @@ import javax.net.ssl.X509TrustManager;
 
 public class TrustAllSSLSocketFactory extends SocketFactory {
 
-	private SSLSocketFactory sf;
+  private SSLSocketFactory sf;
 
-	public TrustAllSSLSocketFactory() {
-		try {
-			SSLContext ctx = SSLContext.getInstance("TLS");
-			ctx.init(null, new X509TrustManager[] { new DummyTrustmanager() }, new SecureRandom());
-			sf = ctx.getSocketFactory();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+  public TrustAllSSLSocketFactory() {
+    try {
+      SSLContext ctx = SSLContext.getInstance("TLS");
+      ctx.init(null, new X509TrustManager[] { new DummyTrustmanager() }, new SecureRandom());
+      sf = ctx.getSocketFactory();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
 
-	public static SocketFactory getDefault() {
-		return new TrustAllSSLSocketFactory();
-	}
-	
-	@Override
-	public Socket createSocket(String host, int port) throws IOException, UnknownHostException {
-		return sf.createSocket(host, port);
-	}
+  public static SocketFactory getDefault() {
+    return new TrustAllSSLSocketFactory();
+  }
 
-	@Override
-	public Socket createSocket(InetAddress host, int port) throws IOException {
-		return sf.createSocket(host, port);
-	}
+  @Override
+  public Socket createSocket(String host, int port) throws IOException, UnknownHostException {
+    return sf.createSocket(host, port);
+  }
 
-	@Override
-	public Socket createSocket(String host, int port, InetAddress localHost, int localPort)
-			throws IOException, UnknownHostException {
-		return sf.createSocket(host, port, localHost, localPort);
-	}
+  @Override
+  public Socket createSocket(InetAddress host, int port) throws IOException {
+    return sf.createSocket(host, port);
+  }
 
-	@Override
-	public Socket createSocket(InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException {
-		return sf.createSocket(address, port, localAddress, localPort);
-	}
+  @Override
+  public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException, UnknownHostException {
+    return sf.createSocket(host, port, localHost, localPort);
+  }
 
-	static class DummyTrustmanager implements X509TrustManager {
+  @Override
+  public Socket createSocket(InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException {
+    return sf.createSocket(address, port, localAddress, localPort);
+  }
 
-		@Override
-		public void checkClientTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
-			// noop
+  static class DummyTrustmanager implements X509TrustManager {
 
-		}
+    @Override
+    public void checkClientTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+      // noop
 
-		@Override
-		public void checkServerTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
-			// noop
+    }
 
-		}
+    @Override
+    public void checkServerTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+      // noop
 
-		@Override
-		public X509Certificate[] getAcceptedIssuers() {
-			return new java.security.cert.X509Certificate[0];
-		}
+    }
 
-	}
+    @Override
+    public X509Certificate[] getAcceptedIssuers() {
+      return new java.security.cert.X509Certificate[0];
+    }
+
+  }
 }

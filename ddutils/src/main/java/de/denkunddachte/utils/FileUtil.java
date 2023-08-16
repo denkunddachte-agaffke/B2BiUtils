@@ -74,9 +74,11 @@ public abstract class FileUtil {
     if (path == null) {
       return emptyPath;
     }
+    if (path.startsWith("/"))
+      emptyPath = "/";
     path = path.replaceAll("([/\\\\])\\1+", "$1").replaceAll("[/\\\\]$", "");
     final int pos = path.replace('\\', '/').lastIndexOf('/');
-    if (pos > -1) {
+    if (pos > 0) {
       return path.substring(0, pos);
     } else {
       return emptyPath;
@@ -110,3 +112,4 @@ public abstract class FileUtil {
     return (path1.getNameCount() > 1 ? path1.toString().substring(DUMMYROOT.length()).replace('\\', '/') : "/");
   }
 }
+
