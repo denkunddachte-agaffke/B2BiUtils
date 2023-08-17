@@ -215,10 +215,6 @@ public class WorkflowUtil extends AbstractConsoleApp {
     try (WorkflowUtil wfu = new WorkflowUtil(args)) {
       Config cfg = Config.getConfig();
 
-      LOG.log(Level.FINER, "Populate ApiConfig from Config: {0}", cfg.getLoadedResources());
-      ApiConfig apicfg = ApiConfig.getInstance(cfg.getStringMap(null));
-      LOG.log(Level.FINE, "ApiConfig: {0}", apicfg.getConfigFiles());
-
       if (cfg.hasProperty(Props.PROP_LIST_WFD)) {
         VERSIONS listVersions = VERSIONS.LAST;
         if (cfg.getBoolean(Props.PROP_ALL_VERSIONS)) {
