@@ -240,10 +240,6 @@ public class PropertyFiles extends ApiClient {
     return getProperties().get(propertyKey);
   }
 
-  public Property addProperty(String propertyKey, String value) throws ApiException {
-    return addProperty(propertyKey, value);
-  }
-
   public Property addProperty(String propertyKey, String value, String... nodeValues) throws ApiException {
     Property p = getProperties().get(propertyKey);
     if (p != null) {
