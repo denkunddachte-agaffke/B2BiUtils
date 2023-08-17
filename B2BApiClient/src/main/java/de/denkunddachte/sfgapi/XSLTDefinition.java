@@ -83,13 +83,13 @@ public class XSLTDefinition extends ApiClient {
   // API fields
   String                        name;
   String                        encodedXsltData; // b64 encoded GZipped data!
-  int                           version;
-  private int                   defaultVersion;
+  int                           version                 = 1;
+  private int                   defaultVersion          = 1;
   private int                   maxVersion;
   private String                comment;
   private String                modifiedBy;
   private OffsetDateTime        modifyTime;
-  private boolean               enabled;
+  private boolean               enabled                 = true;
   private String                encoding;
   private String                description;
   private List<Integer>         versions;
@@ -380,6 +380,8 @@ public class XSLTDefinition extends ApiClient {
       HttpRequestBase       httpRequest = createRequest(RequestType.POST, new URI(sb.toString()), null);
       ByteArrayOutputStream bos         = new ByteArrayOutputStream();
       SIExport              si          = new SIExport();
+      if (setThisVersionAsDefault)
+        defaultVersion = version;
       si.putArtifact(toSIArtifact());
       si.createImport(bos);
       ((HttpPost) httpRequest).setEntity(new ByteArrayEntity(bos.toByteArray()));
@@ -390,8 +392,6 @@ public class XSLTDefinition extends ApiClient {
         json = new JSONObject(getJSONResponse(response));
         LOGGER.log(Level.FINE, "Import resources returns:\n{0}", json.getString("ImportResult").replace('~', '\n'));
         version = ++maxVersion;
-//        if (setThisVersionAsDefault)
-//          defaultVersion = version;
         setRefreshRequired();
       }
     } catch (IOException | URISyntaxException e) {
