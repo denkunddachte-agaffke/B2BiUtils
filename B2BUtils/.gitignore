@@ -12,7 +12,7 @@
 /DB
 /tmp
 
-# local:
 /BP
+/XSLT
 /*.cfg
 /*.tgz
