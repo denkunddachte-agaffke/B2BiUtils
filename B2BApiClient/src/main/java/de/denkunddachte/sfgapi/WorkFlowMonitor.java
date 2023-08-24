@@ -204,7 +204,12 @@ public class WorkFlowMonitor extends ApiClient {
     this.wfeStatus = json.optInt(WFE_STATUS);
     this.wfeStatusRpt = json.optString(WFE_STATUS_RPT);
     this.workFlowId = json.getLong(WORKFLOW_ID);
-    this.exeState = ExecState.getState(json.getString(EXE_STATE));
+    // In some error cases, exeState is filled with basicStatus (as string). Treat this as SYSTEM_ERROR:
+    if (json.getString(EXE_STATE).equals(String.valueOf(this.basicStatus))) {
+      this.exeState = ExecState.SYSTEM_ERROR;
+    } else {
+      this.exeState = ExecState.getState(json.getString(EXE_STATE));
+    }
     this.wfdName = json.getString(WFD_NAME);
     return this;
   }
