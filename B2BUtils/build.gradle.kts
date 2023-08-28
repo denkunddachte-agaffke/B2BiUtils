@@ -70,12 +70,15 @@ distributions {
         }
     }
 }
+
+/* Install b2biutils locally to ${b2biutils.install.dir} (set in gradle.properties).
+*/
 tasks.register<Sync>("localInstall") {
     onlyIf {
         !project.properties["b2biutils.install.dir"].toString().isNullOrEmpty()
     }
     dependsOn("installDist")
-    //dependsOn("deleteLocal")
+
     from("${project.buildDir}/install/b2butils")
     into(project.properties["b2biutils.install.dir"].toString())
     preserve {
