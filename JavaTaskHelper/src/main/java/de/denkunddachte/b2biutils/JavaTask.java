@@ -356,8 +356,9 @@ public final class JavaTask {
   private static File getSourceFile() {
     File f = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(), JavaTask.class.getName().replace(".", "/") + ".java");
     // If running in eclipse, look for source file in src folder (assuming default output mapping src/main/java -> bin/main)
+    final String LF = (new File(".")).separator;
     if (!f.exists()) {
-      f = new File(f.getAbsolutePath().replace("/bin/main/", "/src/main/java/"));
+      f = new File(f.getAbsolutePath().replace( "/bin/main/".replace("/", LF), "/src/main/java/".replace("/", LF)));
     }
     return f;
   }
