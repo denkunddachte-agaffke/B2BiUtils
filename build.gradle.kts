@@ -4,7 +4,6 @@ plugins {
 
 scmVersion {
     localOnly = false
-    //versionCreator("versionWithBranch")
     tag {
         prefix.set("v")
         branchPrefix.set(mapOf("(?i)(az|allianz|master|HCE).*" to "az"))
