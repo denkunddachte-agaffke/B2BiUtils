@@ -191,7 +191,7 @@ public class PropertiesManager extends AbstractConsoleApp {
       pattern = Pattern.compile(StringUtils.globToRegexp(globPattern));
     }
     for (Property p : pf.getProperties().values()) {
-      if (pattern != null && !pattern.matcher(p.getPropertyKey()).matches() && !pattern.matcher(p.getPropertyValue()).matches()) {
+      if (!propertyMatch(pattern, p)) {
         continue;
       }
       if (i++ == 0) {
@@ -231,6 +231,25 @@ public class PropertiesManager extends AbstractConsoleApp {
     }
     System.out.println("Properties: " + i);
   }
+
+  private boolean propertyMatch(Pattern pattern, Property p) throws ApiException {
+    if (pattern == null) {
+      return true;
+    }
+    // property matches if key or value matches
+    if ((p.getPropertyKey() != null && pattern.matcher(p.getPropertyKey()).matches())
+        || (p.getPropertyValue() != null && pattern.matcher(p.getPropertyValue()).matches())) {
+      return true;
+    }
+    
+    for (PropertyNodeValue pnv : p.getNodeValues()) {
+      if (pnv.getPropertyValue() != null && pattern.matcher(pnv.getPropertyValue()).matches()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // END list properties
 
   private void getProperty(String prefix, String key, int node) throws ApiException {
