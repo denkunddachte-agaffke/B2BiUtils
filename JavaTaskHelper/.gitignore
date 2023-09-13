@@ -1,1 +1,5 @@
-JavaTask-out.dat
+/JavaTask-out.dat
+/PD*.xml
+/*.json
+/*.txt
+/*.dat

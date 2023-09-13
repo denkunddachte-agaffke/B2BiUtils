@@ -26,8 +26,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Arrays;
@@ -55,6 +57,9 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -101,7 +106,7 @@ public final class JavaTask {
   /**
    * Define your test code in public static test<name>(String... args) methods here:
    */
-  
+
   /**
    * IBM's sample JavaTask (see <a href="https://www.ibm.com/support/pages/how-work-ibm-sterling-b2b-integrator-javatask-service">...</a>)
    * @return String ("OK")
@@ -134,11 +139,11 @@ public final class JavaTask {
     // import java.io.InputStream; import java.io.OutputStream;
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import com.sterlingcommerce.woodstock.util.frame.Manager;
-    
-    //Setup dummy property:
+
+    // Setup dummy property:
     Manager.setProperty("myprops", "test", "Test value.");
-    // 
-    
+    //
+
     String test = Manager.getProperty("myprops", "test");
     log.log("Run JavaTaskSample... test=" + test);
     Random randomGenerator = new Random();
@@ -196,6 +201,39 @@ public final class JavaTask {
     return "OK";
   }
 
+  public static String testJoinIds(final String... args) throws Exception {
+
+    // Add imports as comments here and uncomment when pasting into JavaTask service:
+    // import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
+    // import javax.xml.xpath.XPath; import javax.xml.xpath.XPathConstants; import javax.xml.xpath.XPathFactory;
+    XPath    xp       = XPathFactory.newInstance().newXPath();
+    NodeList nl       = (NodeList) xp.compile("/ProcessData/RULES/rule/ID").evaluate(wfc.toDOM(), XPathConstants.NODESET);
+    int      children = nl.getLength();
+    log.log("RULES: " + children);
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < nl.getLength(); i++) {
+      if (i > 0)
+        sb.append(',');
+      sb.append(nl.item(i).getTextContent());
+    }
+    wfc.addWFContent("RULES/IDS", sb.toString());
+
+    // import javax.xml.transform.dom.DOMSource;
+    // import java.io.StringWriter;
+    // import javax.xml.transform.stream.StreamResult
+    // import javax.xml.transform.TransformerFactory;
+    // import javax.xml.transform.Transformer;
+
+    DOMSource          domSource   = new DOMSource(wfc.toDOM());
+    StringWriter       writer      = new StringWriter();
+    StreamResult       result      = new StreamResult(writer);
+    TransformerFactory tf          = TransformerFactory.newInstance();
+    Transformer        transformer = tf.newTransformer();
+    transformer.transform(domSource, result);
+    log.log(writer.toString());
+    return "OK";
+  }
+
   /**
    * Base64 encode primary document and set as new primary doc
    */
@@ -203,9 +241,9 @@ public final class JavaTask {
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import java.util.Base64; import java.util.Base64.Encoder;
     // import java.io.InputStream; import java.io.OutputStream;
-    
+
     // PrimaryDocumentData: Hello World!
-    
+
     Encoder      enc    = Base64.getEncoder();
     Document     doc    = wfc.getPrimaryDocument();
     Document     newDoc = new Document();
@@ -219,6 +257,161 @@ public final class JavaTask {
     is.close();
     os.close();
     wfc.putPrimaryDocument(newDoc);
+    return "OK";
+  }
+
+  /**
+   * Base64 encode primary document and set as new primary doc
+   */
+  public static String testMD5(String... args) throws Exception {
+    // import java.security.MessageDigest; import com.sterlingcommerce.woodstock.workflow.Document;
+    // import java.io.InputStream; import java.io.OutputStream; import java.math.BigInteger;
+    String hash = (String) wfc.getWFContent("TMP_SB/AV_HASH");
+
+    if (hash == null || hash.trim().isEmpty()) {
+      MessageDigest md   = MessageDigest.getInstance("MD5");
+      byte[]        buf  = new byte[8192];
+      int           read = 0;
+      InputStream   is   = wfc.getPrimaryDocument().getBodyInputStream();
+      while ((read = is.read(buf)) > -1) {
+        md.update(buf, 0, read);
+      }
+      is.close();
+      byte[]        d  = md.digest();
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < d.length; i++) {
+        sb.append(String.format("%02x", new Object[] { new Integer(d[i] & 0xff) }));
+      }
+      hash = sb.toString();
+    }
+
+    String query = "{\"request\":[{\"md5\": \"" + hash + "\",\"file_name\": \"MyFile\",\"features\": [\"av\"]}]}";
+    wfc.addWFContent("AV_HASH", hash);
+    wfc.addWFContent("AV_QUERY", query);
+
+    String       mimeHeader  = "Content-Type: application/json\r\n" + "Authorization: " + (String) wfc.getWFContent("AZ_CONF/AV_SB_API_KEY") + "\r\n"
+        + "Content-Length: " + String.valueOf(query.length()) + "\r\n\r\n";
+    Document     newDocument = new Document();
+    OutputStream os          = newDocument.getOutputStream();
+    os.write(mimeHeader.getBytes());
+    os.write(query.getBytes());
+
+    os.flush();
+    os.close();
+    wfc.putPrimaryDocument(newDocument);
+    return "OK";
+  }
+
+  public static String testSB2(String... args) throws Exception {
+    // PrimaryDocumentName: HttpClientDocument_node2_20230906173306157
+    // PrimaryDocumentData: {
+//    "response": {
+//      "status": {
+//        "code": 1002,
+//        "label": "UPLOAD_SUCCESS",
+//        "message": "The file was uploaded successfully."
+//      },
+//      "sha1": "a6c70820d4feeab286366ee7d63f77aa9ad7e638",
+//      "md5": "03b3d49d213b2a265905a1d8f3c0453f",
+//      "sha256": "232462df1a5c31284837ecc5fed8246fef2bbd5c4bca2fb2b043e16901205374",
+//      "file_type": "",
+//      "file_name": "MyFile",
+//      "features": [
+//        "av"
+//      ],
+//      "av": {
+//        "status": {
+//          "code": 1002,
+//          "label": "UPLOAD_SUCCESS",
+//          "message": "The file was uploaded successfully."
+//        }
+//      }
+//    }
+//  }
+    // EOF
+
+    // https://www.ibm.com/developerworks/community/blogs/SterlingB2B/entry/What_can_you_do_with_the_Java_Task_Service?lang=en
+    // import org.json.JSONObject; import org.json.JSONTokener; import org.json.JSONArray;
+
+    JSONObject o = new JSONObject(new JSONTokener(wfc.getPrimaryDocument().getBodyInputStream()));
+    wfc.addWFContent("response/raw", o.toString(0));
+    if (o.has("response")) {
+      JSONObject av;
+      if (o.get("response") instanceof JSONArray) {
+        av = o.getJSONArray("response").getJSONObject(0).getJSONObject("av");
+        o = av.getJSONObject("status");
+      } else {
+        av = o.getJSONObject("response").getJSONObject("av");
+      }
+      o = av.getJSONObject("status");
+      wfc.addWFContent("response/code", String.valueOf(o.getInt("code")));
+      wfc.addWFContent("response/label", o.getString("label"));
+      wfc.addWFContent("response/message", o.getString("message"));
+      if (o.has("malware_info")) {
+        o = av.getJSONObject("malware_info");
+        wfc.addWFContent("response/signature_name", o.getString("signature_name"));
+        wfc.addWFContent("response/malware_family", String.valueOf(o.get("malware_family")));
+        wfc.addWFContent("response/malware_type", String.valueOf(o.get("malware_type")));
+        wfc.addWFContent("response/severity", String.valueOf(o.get("severity")));
+        wfc.addWFContent("response/confidence", String.valueOf(o.get("confidence")));
+      }
+    }
+    return "OK";
+  }
+
+  public static String testSB3(String... args) throws Exception {
+    // https://www.ibm.com/developerworks/community/blogs/SterlingB2B/entry/What_can_you_do_with_the_Java_Task_Service?lang=en
+    // import java.io.InputStream; import java.io.OutputStream;
+    // import com.sterlingcommerce.woodstock.workflow.Document;
+
+    final String  apiKey   = (String) wfc.getWFContent("AZ_CONF/AV_SB_API_KEY");
+    final String  json     = (String) wfc.getWFContent("TMP_SB/JAVA_S_GET_HASH/AV_QUERY");
+    final String  boundary = (String) wfc.getWFContent("TMP_SB/CURRENT_MSG/result/message/DOC_ID");
+    final String  docSize  = (String) wfc.getWFContent("TMP_SB/CURRENT_MSG/result/message/MESSAGE_SIZE");
+    final String  CR       = "\r\n";
+
+    StringBuilder sb       = new StringBuilder();
+
+    sb.append("--").append(boundary).append(CR);
+    sb.append("Content-Disposition: form-data; name=\"request\"").append(CR);
+    sb.append("Content-Type: application/json").append(CR).append(CR);
+    sb.append(json).append(CR);
+    sb.append("--").append(boundary).append(CR);
+    sb.append("Content-Disposition: form-data; name=\"file\"; filename=\"MyFile\"").append(CR);
+    sb.append("Content-Type: application/octet-stream").append(CR).append(CR);
+    final String mimeFirstPart = sb.toString();
+    sb.setLength(0);
+    sb.append(CR).append("--").append(boundary).append("--").append(CR);
+    final String mimeLastPart = sb.toString();
+
+    int          len          = mimeFirstPart.length() + boundary.length() + mimeLastPart.length() + Integer.parseInt(docSize);
+    sb.setLength(0);
+    sb.append("Content-Type: multipart/form-data; boundary=").append(boundary).append(CR);
+    sb.append("Authorization: ").append(apiKey).append(CR);
+    sb.append("Content-Length: ").append(len).append(CR).append(CR);
+
+    // create new PrimDoc with a MIME object
+    Document     newDocument = new Document();
+    OutputStream os          = newDocument.getOutputStream();
+
+    os.write(sb.toString().getBytes());
+    os.write(mimeFirstPart.getBytes());
+
+    // loop for prim doc
+    Document    doc    = wfc.getPrimaryDocument();
+    InputStream is     = doc.getBodyInputStream();
+    int         n;
+    byte[]      buffer = new byte[16384];
+
+    while ((n = is.read(buffer)) > -1) {
+      os.write(buffer, 0, n);   // Don't allow any extra bytes to creep in, final write
+    }
+
+    is.close();
+    os.write(mimeLastPart.getBytes());
+    os.flush();
+    os.close();
+    wfc.putPrimaryDocument(newDocument);
     return "OK";
   }
 
@@ -354,10 +547,12 @@ public final class JavaTask {
   }
 
   private static File getSourceFile() {
-    File f = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(), JavaTask.class.getName().replace(".", "/") + ".java");
+    File         f  = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
+        JavaTask.class.getName().replace(".", "/") + ".java");
     // If running in eclipse, look for source file in src folder (assuming default output mapping src/main/java -> bin/main)
+    final String LF = (new File(".")).separator;
     if (!f.exists()) {
-      f = new File(f.getAbsolutePath().replace("/bin/main/", "/src/main/java/"));
+      f = new File(f.getAbsolutePath().replace("/bin/main/".replace("/", LF), "/src/main/java/".replace("/", LF)));
     }
     return f;
   }
@@ -577,6 +772,12 @@ public final class JavaTask {
       if (o == null) {
         return null;
       }
+      // if (enableXPath) {
+      // if (o instanceof NodeList) {
+      // return o;
+      // }
+      // }
+
       Node n = (Node) o;
       if (!n.hasChildNodes()) {
         return n.getTextContent();

@@ -22,6 +22,7 @@ dependencies {
     // implementation("software.amazon.awssdk:s3:${awsSdkVersion}")
 
     //implementation(files('b2bilibs/install_foundation.jar'))
+    implementation("org.json:json:20170516")
 
 }
 
