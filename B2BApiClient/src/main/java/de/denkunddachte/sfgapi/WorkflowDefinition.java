@@ -910,15 +910,31 @@ public class WorkflowDefinition extends ApiClient {
     return result;
   }
 
-  // BUG: REST API does not reliably return the default version when doing lookup by id. Setting version to something that does
-  // not exist (e.g. 0) seems to return default version
+  // BUG: REST API does not reliably return the default version when doing lookup by id. Get with searchFor...
   public static WorkflowDefinition find(String name) throws ApiException {
-    return find(name, 0);
+    try {
+      Map<String, Object> params = new HashMap<>();
+      params.put("offset", 0);
+      params.put("fieldList", "full");
+      params.put("searchFor", name);
+      JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
+      for (int i = 0; i < jsonObjects.length(); i++) {
+        if (jsonObjects.getJSONObject(i).getString("name").equals(name)) {
+          return new WorkflowDefinition(jsonObjects.getJSONObject(i));
+        }
+      }
+    } catch (JSONException | UnsupportedEncodingException e) {
+      throw new ApiException(e);
+    }
+    return null;
   }
 
   public static WorkflowDefinition find(String name, int version) throws ApiException {
+    if (version == 0) {
+      return find(name);
+    }
     WorkflowDefinition result = null;
-    String             key    = (version == 0 ? name : name + "/" + version);
+    String             key    = name + "/" + version;
     JSONObject         json   = findByKey(SVC_NAME, key);
     try {
       if (json.has(ERROR_CODE)) {
@@ -1089,6 +1105,7 @@ public class WorkflowDefinition extends ApiClient {
     return result;
   }
 
+  // Execute BP:
   public Workflow execute() throws ApiException {
     return execute((byte[]) null, (String) null);
   }
