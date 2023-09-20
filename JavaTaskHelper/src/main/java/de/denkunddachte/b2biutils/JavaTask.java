@@ -297,11 +297,11 @@ public final class JavaTask {
     final String      initiatorId = (String) wfc.getWFContent("BP/ID");
     final String      bpName      = (String) wfc.getWFContent("INVOKE/WFD_NAME");
     final int         count       = Integer.parseInt((String) wfc.getWFContent("INVOKE/COUNT"));
-    final int         days        = Integer.parseInt((String) wfc.getWFContent("INVOKE/ACTIVE_DAYS"));
+    final int         days        = Integer.parseInt((String) wfc.getWFContent("INVOKE/DAYS"));
     final String      bpQueue     = (String) wfc.getWFContent("INVOKE/QUEUE_NAME");
     final String      METHOD      = "testInvokeBP";
     final String      SQL_SELECT  = "DECLARE @days INT = ?, @count INT = ?\n"
-        + "SELECT TOP(@count) c.FG_CUST_ID, c.CUSTOMER_ID, c.CUSTOMER_NAME, c.LAST_ACTIVE  FROM AZ_FG_CUSTOMER c WHERE c.LAST_ACTIVE > DATEADD(DAY, @days * -1, GETDATE())";
+        + "SELECT TOP(@count) s.DOCUMENT_ID, s.PRODUCER, s.FILE_NAME, s.FILE_UPLOAD_TIME FROM AZ_SFTPL_STATS s WHERE s.FILE_UPLOAD_TIME > DATEADD(DAY, @days * -1, GETDATE())";
     Connection        con         = null;
     PreparedStatement ps          = null;
     try {
@@ -312,7 +312,7 @@ public final class JavaTask {
       ResultSet rs  = ps.executeQuery();
       int       row = 0;
       while (rs.next()) {
-        log.log(METHOD + ": row " + ++row + ": custId " + rs.getString("CUSTOMER_ID"));
+        log.log(METHOD + ": row " + ++row + ": custId " + rs.getString("DOCUMENT_ID"));
         InitialWorkFlowContext iwfc = new InitialWorkFlowContext();
         iwfc.setInitiatorName(initiator);
         iwfc.setQueueWorkFlowDataOnError(false);
@@ -325,10 +325,10 @@ public final class JavaTask {
         iwfc.addContentElement("PARENTNAME", initiator);
         iwfc.addContentElement("PARENTID", initiatorId);
         iwfc.addContentElement("ROW", String.valueOf(row));
-        iwfc.addContentElement("FgCustId", rs.getString("FG_CUST_ID"));
-        iwfc.addContentElement("CustomerId", rs.getString("CUSTOMER_ID"));
-        iwfc.addContentElement("CustomerName", rs.getString("CUSTOMER_NAME"));
-        iwfc.addContentElement("LastActive", rs.getString("LAST_ACTIVE"));
+        iwfc.addContentElement("DocId", rs.getString("DOCUMENT_ID"));
+        iwfc.addContentElement("Producer", rs.getString("PRODUCER"));
+        iwfc.addContentElement("FileName", rs.getString("FILE_NAME"));
+        iwfc.addContentElement("UploadTime", rs.getString("FILE_UPLOAD_TIME"));
 
         log.log(METHOD + ": wfdName=" + wfd.getName() + ", wfdId=" + wfd.getWorkFlowDefinitionID() + ", wfdDefaultVersion=" + wfd.getDefaultVersion()
             + ", wfdVersion=" + wfd.getVersion());
@@ -348,7 +348,6 @@ public final class JavaTask {
           log.log(METHOD + ": Started BP " + bpName + ", WFC_ID=" + cookie.getWorkFlowContextId() + ", status="
               + (cookie.getWorkFlowContext() != null ? cookie.getWorkFlowContext().getExecutionStatus() : "null"));
           wfc.addWFContent("INVOKED", String.valueOf(cookie.getWorkFlowId()));
-          cookie.notify();
         } else {
           log.log(METHOD + ": cookie is null!");
           return "NOK";
