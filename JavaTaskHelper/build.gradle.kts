@@ -21,6 +21,16 @@ dependencies {
     // implementation(platform("software.amazon.awssdk:bom:${awsSdkVersion}"))
     // implementation("software.amazon.awssdk:s3:${awsSdkVersion}")
 
+    // https://mvnrepository.com/artifact/org.json/json
+    implementation("org.json:json:20170516")
+
+    // https://mvnrepository.com/artifact/com.microsoft.sqlserver/mssql-jdbc
+    implementation("com.microsoft.sqlserver:mssql-jdbc:8.4.1.jre8")
+
+    // Add B2Bi libraries from $SI_BASE/jars to b2bilibs folder: 
+    implementation(files("b2bilibs/platform_asi/6_1/platform_asi.jar"))
+    implementation(files("b2bilibs/platform_ifcbase/6_1/platform_ifcbase.jar"))
+    implementation(files("b2bilibs/platform_afc/6_1/platform_afc.jar"))
     //implementation(files('b2bilibs/install_foundation.jar'))
 
 }

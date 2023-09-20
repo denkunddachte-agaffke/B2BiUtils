@@ -1,0 +1,983 @@
+<process name="A0_TEST_BP">
+  <!-- Versioninfo: user=chef, timestamp=2023-08-04 14:24:11.052 -->
+  <rule name="testExec?">
+    <condition>1=1</condition>
+  </rule>
+  <rule name="testAWS?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testInvoke?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testRESTClient?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testSFTP?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testZIP?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testDB?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testMBOX?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testCLA?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="testJava?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="other?">
+    <condition>0=1</condition>
+  </rule>
+  <rule name="unroutedMboxExists?">
+    <condition>count(/ProcessData/TRANSFER/result/row) &lt; 1</condition>
+  </rule>
+  <rule name="HaveSessionToken?">
+    <condition>string-length(/ProcessData/SessionToken) &gt; 0</condition>
+  </rule>
+  <rule name="mbxExists?">
+    <condition>boolean(/ProcessData/TMP_STEP/GET/Response_0/Mailboxes/Mailbox[@path='/resttest'])</condition>
+  </rule>
+  <rule name="invoke?">
+    <condition>count(/ProcessData/TO_CHILD/INVOKE) = 0 or count(/ProcessData/TO_CHILD/INVOKE) &lt; 3</condition>
+  </rule>
+  <rule name="haveDocument?">
+    <condition>string-length(/ProcessData/PrimaryDocument/@SCIObjectID) &gt; 0</condition>
+  </rule>
+  <rule name="loop?">
+    <condition>number(i) &gt; 0</condition>
+  </rule>
+
+  <sequence name="A0_TEST_BP">
+    <choice name="?testExec?">
+      <select>
+        <case ref="testExec?" activity="testExec!" />
+      </select>
+      <sequence name="testExec!">
+        <operation name="Get BP metadata">
+          <participant name="BPMetaDataInfoService" />
+          <output message="xout">
+            <assign to="." from="*" />
+          </output>
+          <input message="xin">
+            <assign to="BP/ID" from="string(BPDATA/WORKFLOW_ID)" append="true" />
+            <assign to="BP/MAIN" from="if(boolean(/xin/BPDATA/*[contains(local-name(), 'INLINE_WFD')]), string(/xin/BPDATA/*[contains(local-name(), 'INLINE_WFD')][last()]/WFD_NAME), string(/xin/BPDATA/WFD_NAME))" />
+            <assign to="BP/NAME" from="string(BPDATA/WFD_NAME)" />
+            <assign to="BP/QUEUE" from="if(boolean(/xin/BPDATA/*[contains(local-name(), 'INLINE_WFD')]), string(/xin/BPDATA/*[contains(local-name(), 'INLINE_WFD')][last()]/WFD_PRIORITY), string(/xin/BPDATA/WFD_PRIORITY))" />
+          </input>
+        </operation>
+        <operation name="Assign:setup">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="INVOKE/WFD_NAME" append="true" >A0_TEST_INVOKE</assign>
+            <assign to="INVOKE/COUNT" >10</assign>
+            <assign to="INVOKE/ACTIVE_DAYS" >730</assign>
+            <!-- <assign to="INVOKE/QUEUE_NAME" >5</assign> -->
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <operation name="SelectAndInvokeBPs">
+          <participant name="DD_JavaTaskService" />
+          <output message="Xout">
+            <assign to="." from="*" />
+            <assign to="srcLocationMode">inline</assign>
+            <assign to="javaSrc"><![CDATA[
+              import java.sql.Connection; import java.sql.PreparedStatement; import java.sql.ResultSet; import java.sql.SQLException;
+              import com.sterlingcommerce.woodstock.util.frame.jdbc.JDBCService;
+              import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
+              import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
+              import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
+          
+              final String      initiator   = (String) wfc.getWFContent("BP/MAIN");
+              final String      initiatorId = (String) wfc.getWFContent("BP/ID");
+              final String      bpName      = (String) wfc.getWFContent("INVOKE/WFD_NAME");
+              final int         count       = Integer.parseInt((String) wfc.getWFContent("INVOKE/COUNT"));
+              final int         days        = Integer.parseInt((String) wfc.getWFContent("INVOKE/ACTIVE_DAYS"));
+              final String      bpQueue     = (String) wfc.getWFContent("INVOKE/QUEUE_NAME");
+              final String      METHOD      = "testInvokeBP";
+              final String      SQL_SELECT  = "DECLARE @days INT = ?, @count INT = ?\n"
+                  + "SELECT TOP(@count) c.FG_CUST_ID, c.CUSTOMER_ID, c.CUSTOMER_NAME, c.LAST_ACTIVE  FROM AZ_FG_CUSTOMER c WHERE c.LAST_ACTIVE > DATEADD(DAY, @days * -1, GETDATE())";
+              Connection        con         = null;
+              PreparedStatement ps          = null;
+              try {
+                con = JDBCService.getConnection();
+                ps = con.prepareStatement(SQL_SELECT);
+                ps.setInt(1, days);
+                ps.setInt(2, count);
+                ResultSet rs  = ps.executeQuery();
+                int       row = 0;
+                while (rs.next()) {
+                  log.log(METHOD + ": row " + ++row + ": custId " + rs.getString("CUSTOMER_ID"));
+                  InitialWorkFlowContext iwfc = new InitialWorkFlowContext();
+                  iwfc.setInitiatorName(initiator);
+                  iwfc.setQueueWorkFlowDataOnError(false);
+                  int         wfdId = WorkFlowDef.getIDForName(bpName);
+                  WorkFlowDef wfd   = new WorkFlowDef(wfdId);
+                  iwfc.setWorkFlowName(wfd.getName());
+                  iwfc.setWorkFlowDefId(wfdId);
+                  // add some process data:
+                  // DO NOT USE TAGS: PARENT_SERVICE_NAME, PARENT_WF_ID!
+                  iwfc.addContentElement("PARENTNAME", initiator);
+                  iwfc.addContentElement("PARENTID", initiatorId);
+                  iwfc.addContentElement("ROW", String.valueOf(row));
+                  iwfc.addContentElement("FgCustId", rs.getString("FG_CUST_ID"));
+                  iwfc.addContentElement("CustomerId", rs.getString("CUSTOMER_ID"));
+                  iwfc.addContentElement("CustomerName", rs.getString("CUSTOMER_NAME"));
+                  iwfc.addContentElement("LastActive", rs.getString("LAST_ACTIVE"));
+          
+                  log.log(METHOD + ": wfdName=" + wfd.getName() + ", wfdId=" + wfd.getWorkFlowDefinitionID() + ", wfdDefaultVersion=" + wfd.getDefaultVersion()
+                      + ", wfdVersion=" + wfd.getVersion());
+                  iwfc.setStepTrace(false);
+                  iwfc.setIgnoreWorkFlowIdFileName(true);
+                  WorkFlowContextCookie cookie;
+                  if (bpQueue == null || bpQueue.isEmpty()) {
+                    log.log(METHOD + ": Starting BP " + bpName + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version=" + wfd.getVersion() + "]...");
+                    cookie = iwfc.start();
+                  } else {
+                    iwfc.setNoneBPQueueInfo(bpQueue);
+                    log.log(METHOD + ": Starting BP (ASYNC) " + bpName + " on q " + bpQueue + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version="
+                        + wfd.getVersion() + "]...");
+                    cookie = iwfc.asyncStart();
+                  }
+                  if (cookie != null) {
+                    log.log(METHOD + ": Started BP " + bpName + ", WFC_ID=" + cookie.getWorkFlowContextId() + ", status="
+                        + (cookie.getWorkFlowContext() != null ? cookie.getWorkFlowContext().getExecutionStatus() : "null"));
+                    wfc.addWFContent("INVOKED", String.valueOf(cookie.getWorkFlowId()));
+                  } else {
+                    log.log(METHOD + ": cookie is null!");
+                    return "NOK";
+                  }
+                }
+              } catch (SQLException e) {
+                wfc.setBasicStatus(1);
+                wfc.setAdvancedStatus(e.getMessage());
+                throw e;
+              }
+              return "OK";
+            ]]>
+            </assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+      <!-- END OF sequence "testExec!" -->
+    </choice>
+    <!-- END OF choice "?testExec?" -->
+    <choice name="?testAWS?">
+      <select>
+        <case ref="testAWS?" activity="testAWS!" />
+      </select>
+      <sequence name="testAWS!">
+        <operation name="Assign:awsparam">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <!-- sfgdev-test: -->
+            <!-- <assign to="bucketname">sfgdev-test</assign>
+            <assign to="region">eu-central-1</assign>
+            <assign to="endpoint">s3.eu-central-1.amazonaws.com</assign> -->
+            <!-- <assign to="accesskey">AKIAXJIC5W6PSUCKDMDQ</assign>
+            <assign to="secretkey">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</assign> -->
+            <!-- <assign
+            to="obscuredaccesskey">rO0ABXQABkRFU2VkZXVyAAJbQqzzF/gGCFTgAgAAeHAAAAAISozqRUx2EZZzcgARamF2YS5sYW5nLkludGVnZXIS4qCk94GHOAIAAUkABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwAAAAZXVxAH4AAQAAABgz/Y+vf0xo91cCe1MIXLRnVBobYbKjfQQ=</assign>
+            <assign
+            to="obscuredsecretkey">rO0ABXQABkRFU2VkZXVyAAJbQqzzF/gGCFTgAgAAeHAAAAAIU228zaL50MxzcgARamF2YS5sYW5nLkludGVnZXIS4qCk94GHOAIAAUkABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwAAAAZXVxAH4AAQAAADC6HuGoXidV4vmdEns6OnQa69lyzSyAiNzdiC9GNMqHvmLiURDk1kvkILvP32kJnVo=</assign> -->
+
+            <!-- s3-sfg-poc: -->
+            <assign to="bucketname">s3-sfg-poc</assign>
+            <!-- <assign to="region">eu-central-1</assign>
+            <assign to="endpoint">https://s3.eu-central-1.amazonaws.com</assign> -->
+            <!-- <assign to="accesskey">AKIA3BLPBF2S4HPCBCMK</assign>
+            <assign to="secretkey">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</assign> -->
+            <assign to="obscuredaccesskey">rO0ABXQABkRFU2VkZXVyAAJbQqzzF/gGCFTgAgAAeHAAAAAIXNpcgIDPSj9zcgARamF2YS5sYW5nLkludGVnZXIS4qCk94GHOAIAAUkABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwAAAAZXVxAH4AAQAAABjca6qZzKknhH/2YWa4XbObNeM40tdFT9I=</assign>
+            <assign to="obscuredsecretkey">rO0ABXQABkRFU2VkZXVyAAJbQqzzF/gGCFTgAgAAeHAAAAAIfLBdOSGEab5zcgARamF2YS5sYW5nLkludGVnZXIS4qCk94GHOAIAAUkABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwAAAAZXVxAH4AAQAAADCdPcu8ZKFkWAR4+yV7t53JPJXb10ulbiWzVNDVhT6cd8eTeUoMCFrxOokSql8SvFE=</assign>
+          </output>
+          <input message="Xin">
+            <assign from="*" to="." />
+          </input>
+        </operation>
+        <operation name="Extract File List">
+          <participant name='AWSS3Client' />
+          <output message='xout'>
+            <assign to='action'>list</assign>
+            <assign to="awss3.bucketname" from="bucketname/text()" />
+            <assign to="awss3.accesskey" from="accesskey/text()" />
+            <assign to="awss3.secretkey" from="secretkey/text()" />
+            <assign to="awss3.obscuredaccesskey" from="obscuredaccesskey/text()" />
+            <assign to="awss3.obscuredsecretkey" from="obscuredsecretkey/text()" />
+            <assign to="awss3.endpoint" from="endpoint/text()" />
+            <assign to="awss3.region" from="region/text()" />
+            <!-- <assign to='.' from='PrimaryDocument' /> -->
+          </output>
+          <input message="xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <operation name="ReleaseService">
+          <participant name="ReleaseService" />
+          <output message="ReleaseServiceTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="TARGET">Files</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <!-- <operation name="MKDIR">
+          <participant name='AWSS3Client'/>
+          <output message='xout'>
+            <assign to='action'>mkdir</assign>
+            <assign to="awss3.bucketname" from="bucketname/text()"/>
+            <assign to="awss3.accesskey" from="accesskey/text()"/>
+            <assign to="awss3.secretkey" from="secretkey/text()"/>
+            <assign to="awss3.obscuredaccesskey" from="obscuredaccesskey/text()"/>
+            <assign to="awss3.obscuredsecretkey" from="obscuredsecretkey/text()"/>
+            <assign to="awss3.endpoint" from="endpoint/text()"/>
+            <assign to="awss3.region" from="region/text()"/>
+
+            <assign to="awss3.foldername">sfgtest</assign>
+          </output>
+          <input message="xin">
+            <assign to="." from="*"/>
+          </input>
+        </operation> -->
+
+        <choice name="?haveDocument?">
+          <select>
+            <case ref="haveDocument?" activity="haveDocument!" />
+          </select>
+          <sequence name="haveDocument!">
+            <operation name="GetDocumentInfoService">
+              <participant name="GetDocumentInfoService" />
+              <output message="xout">
+                <assign to="PrimaryDocument" from="PrimaryDocument/@*" />
+              </output>
+              <input message="xin">
+                <assign to="." from="/xin/DocumentId|/xin/DocumentName|/xin/DocumentLength|/xin/DocumentContentType|/xin/DocumentContentSubType|/xin/DocumentWorkflowId" />
+              </input>
+            </operation>
+            <operation name="set user token">
+              <participant name="SetUserToken" />
+              <output message="SetUserTokenMessage">
+                <assign to="USER_TOKEN">admin</assign>
+                <assign to="." from="*" />
+              </output>
+              <input message="inmsg">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+            <operation name="Mailbox Add Service">
+              <participant name="MailboxAdd" />
+              <output message="AddRequest">
+                <assign to="PrimaryDocument" from="/ProcessData/PrimaryDocument/@*" />
+                <assign to="MailboxPath">/tmp</assign>
+                <assign to="MessageName" from="string(/ProcessData/DocumentName)" />
+                <assign to="Extractable">Yes</assign>
+              </output>
+              <input message="inmsg">
+                <assign to="TMP_STEP/MBOX_ADD" from="*" append="true" />
+              </input>
+            </operation>
+
+            <!-- <operation name="Put File">
+              <participant name='AWSS3Client'/>
+              <output message='xout'>
+                <assign to='action'>get</assign>
+                <assign to="awss3.bucketname" from="bucketname/text()"/>
+                <assign to="awss3.accesskey" from="accesskey/text()"/>
+                <assign to="awss3.secretkey" from="secretkey/text()"/>
+                <assign to="awss3.obscuredaccesskey" from="obscuredaccesskey/text()"/>
+                <assign to="awss3.obscuredsecretkey" from="obscuredsecretkey/text()"/>
+                <assign to="awss3.endpoint" from="endpoint/text()"/>
+                <assign to="awss3.region" from="region/text()"/>
+                <assign to="awss3.filepattern">Folder1/Testfile*.txt</assign>
+                <assign to="useOrigFileName">true</assign>
+                <assign to='.' from='PrimaryDocument' />
+              </output>
+              <input message="xin">
+                <assign to="." from="*"/>
+              </input>
+            </operation> -->
+
+          </sequence>
+          <!-- END OF sequence "haveDocument!" -->
+        </choice>
+        <!-- END OF choice "?haveDocument?" -->
+
+        <operation name="Extract File">
+          <participant name='AWSS3Client' />
+          <output message='xout'>
+            <assign to='action'>get</assign>
+            <assign to="awss3.bucketname" from="bucketname/text()" />
+            <assign to="awss3.accesskey" from="accesskey/text()" />
+            <assign to="awss3.secretkey" from="secretkey/text()" />
+            <assign to="awss3.obscuredaccesskey" from="obscuredaccesskey/text()" />
+            <assign to="awss3.obscuredsecretkey" from="obscuredsecretkey/text()" />
+            <assign to="awss3.endpoint" from="endpoint/text()" />
+            <assign to="awss3.region" from="region/text()" />
+            <assign to="awss3.filepattern">Folder1/Testfile*.txt</assign>
+            <assign to="useOrigFileName">true</assign>
+            <assign to='.' from='PrimaryDocument' />
+          </output>
+          <input message="xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+
+      </sequence>
+      <!-- END OF sequence "testAWS!" -->
+    </choice>
+    <!-- END OF choice "?testAWS?" -->
+
+    <choice name="?testInvoke?">
+      <select>
+        <case ref="testInvoke?" activity="testInvoke!" />
+      </select>
+      <sequence name="testInvoke!">
+        <operation name="BP_Metadata:_Get_WF_ID">
+          <participant name="BPMetaDataInfoService" />
+          <output message="Xout">
+            <assign to="." from="*"></assign>
+          </output>
+          <input message="Xin">
+            <assign to="WF_ID" from="string(BPDATA/WORKFLOW_ID)" />
+            <assign to="BP_MAIN" from="string(BPDATA/*[contains(local-name(), 'INLINE_WFD')][last()]/WFD_NAME)" />
+            <assign to="BP_NAME" from="string(BPDATA/WFD_NAME)" />
+            <assign to="BP_QUEUE" from="string(BPDATA/*[contains(local-name(), 'INLINE_WFD')][last()]/WFD_PRIORITY)" />
+          </input>
+        </operation>
+
+        <assign to="INVOKE" from="if(boolean(/ProcessData/INVOKE), number(/ProcessData/INVOKE + 1), 0)" />
+
+        <choice name="?invoke?">
+          <select>
+            <case ref="invoke?" activity="invoke!" />
+          </select>
+          <sequence name="invoke!">
+            <assign to="/ProcessData/TO_CHILD/INVOKE" from="count(/ProcessData/TO_CHILD/INVOKE)" append="true" />
+            <!-- message_to_child also works in ASYNC mode, must be assigned in ProcessData, though (setting it 
+              in InvokeSubProcessServiceTypeInputMessage does not work!) -->
+            <assign to="message_to_child" from="/ProcessData/TO_CHILD" />
+            <operation name="SelfInvoke">
+              <participant name="InvokeSubProcessService" />
+              <output message="InvokeSubProcessServiceTypeInputMessage">
+                <assign to="INVOKE_MODE">ASYNC</assign>
+                <assign to="WFD_NAME" from="string(/ProcessData/BP_NAME)" />
+                <assign to="NOTIFY_PARENT_ON_ERROR">NONE</assign>
+                <assign to="." from="*" />
+              </output>
+              <input message="inmsg">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "invoke!" -->
+        </choice>
+        <!-- END OF choice "?invoke?" -->
+        <assign to="STATUS">Done</assign>
+
+      </sequence>
+      <!-- END sequence testInvoke! -->
+    </choice>
+    <!-- END choice ?testInvoke? -->
+
+    <choice name="?testRESTClient?">
+      <select>
+        <case ref="testRESTClient?" activity="testRESTClient!" />
+      </select>
+      <sequence name="testRESTClient!">
+        <operation name="Request">
+          <participant name='RESTAPIClient' />
+          <output message='xout'>
+            <assign to='url'>https://garfield:10084/B2BAPIs/svc/mailboxes/?_range=0-10&amp;path=%2Fresttest</assign>
+            <assign to='restoperation'>GET</assign>
+            <assign to="delim">CUSTOM-DELIM</assign>
+            <assign to='Content-type'>Application/XML</assign>
+            <assign to='Accept'>Application/XML</assign>
+            <assign to='Authorization'>Basic</assign>
+            <assign to='auth'>chef1:hassia</assign>
+            <assign to='.' from='*' />
+          </output>
+          <input message="xin">
+            <assign to='TMP_STEP/GET' from='*' append="true" />
+          </input>
+        </operation>
+        <operation name="Request">
+          <participant name='RESTAPIClient' />
+          <output message='xout'>
+            <assign to='url'>https://garfield:10084/B2BAPIs/svc/mailboxes/?_range=0-10&amp;path=%2FA0</assign>
+            <assign to='restoperation'>GET</assign>
+            <assign to='Content-type'>Application/json</assign>
+            <assign to='outputpath'>/ibm/trace/logs/node1/get.json.txt</assign>
+            <assign to='Accept'>Application/json</assign>
+            <assign to='Authorization'>Basic</assign>
+            <assign to='auth'>chef1:hassia</assign>
+            <assign to='.' from='*' />
+          </output>
+          <input message="xin">
+            <assign to='TMP_STEP/GET2' from='*' append="true" />
+          </input>
+        </operation>
+
+        <choice name="?mbxExists?">
+          <select>
+            <case ref="mbxExists?" activity="deleteMbx!" />
+            <case ref="mbxExists?" activity="createMbx!" negative="true" />
+          </select>
+          <sequence name="createMbx!">
+            <assign to="qq">"</assign>
+            <assign to="q">'</assign>
+            <operation name="Request">
+              <participant name='RESTAPIClient' />
+              <output message='xout'>
+                <assign to='url'>https://garfield:10084/B2BAPIs/svc/mailboxes/</assign>
+                <assign to='restoperation'>POST</assign>
+                <assign to='Content-type'>Application/json</assign>
+                <assign to='jsoninput1'
+                  from="concat('{', 
+                  qq, 'createParentMailbox', qq, ': false, ',
+                  qq, 'description', qq, ': ', qq, 'Created by REST BP...', qq, ', ',
+                  qq, 'mailboxType', qq, ': ', qq, 'R', qq, ', ',
+                  qq, 'path', qq, ': ', qq, '/resttest', qq,
+                  '}')" />
+                <assign to='Accept'>Application/XML</assign>
+                <assign to='Authorization'>Basic</assign>
+                <assign to='auth'>chef1:hassia</assign>
+                <assign to='.' from='*' />
+              </output>
+              <input message="xin">
+                <assign to='TMP_STEP/POST' from='*' append="true" />
+              </input>
+            </operation>
+            <operation name="Request">
+              <participant name='RESTAPIClient' />
+              <output message='xout'>
+                <assign to='url'>https://garfield:10084/B2BAPIs/svc/mailboxes/</assign>
+                <assign to='restoperation'>POST</assign>
+                <assign to='Content-type'>Application/json</assign>
+                <!-- A bit better readable: -->
+                <assign to='jsoninput1'
+                  from="concat('{&quot;createParentMailbox&quot;: false, ', 
+                  '&quot;description&quot;: &quot;Created by REST BP...&quot;, ',
+                  '&quot;mailboxType&quot;: &quot;R&quot;, ',
+                  '&quot;path&quot;: &quot;/resttest2&quot;}')" />
+                <assign to='Accept'>Application/XML</assign>
+                <assign to='Authorization'>Basic</assign>
+                <assign to='auth'>chef1:hassia</assign>
+                <assign to='.' from='*' />
+              </output>
+              <input message="xin">
+                <assign to='TMP_STEP/POST2' from='*' append="true" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "createMbx!" -->
+          <sequence name="deleteMbx!">
+            <assign to="qq">"</assign>
+            <assign to="q">'</assign>
+            <operation name="Request">
+              <participant name='RESTAPIClient' />
+              <output message='xout'>
+                <assign to='url' from="concat('https://garfield:10084/B2BAPIs/svc/mailboxes/', /ProcessData/TMP_STEP/GET/Response_0/Mailboxes/Mailbox[@path='/resttest']/@_id)" />
+                <assign to='restoperation'>DELETE</assign>
+                <assign to='Content-type'>Application/XML</assign>
+                <assign to='Accept'>Application/XML</assign>
+                <assign to='Authorization'>Basic</assign>
+                <assign to='auth'>chef1:hassia</assign>
+                <assign to='.' from='*' />
+              </output>
+              <input message="xin">
+                <assign to='TMP_STEP/DELETE' from='*' append="true" />
+              </input>
+            </operation>
+            <operation name="Request">
+              <participant name='RESTAPIClient' />
+              <output message='xout'>
+                <assign to='url' from="concat('https://garfield:10084/B2BAPIs/svc/mailboxes/', /ProcessData/TMP_STEP/GET/Response_0/Mailboxes/Mailbox[@path='/resttest2']/@_id)" />
+                <assign to='restoperation'>DELETE</assign>
+                <assign to='Content-type'>Application/XML</assign>
+                <assign to='Accept'>Application/XML</assign>
+                <assign to='Authorization'>Basic</assign>
+                <assign to='auth'>chef1:hassia</assign>
+                <assign to='.' from='*' />
+              </output>
+              <input message="xin">
+                <assign to='TMP_STEP/DELETE2' from='*' append="true" />
+              </input>
+            </operation>
+          </sequence>
+          <!-- END OF sequence "deleteMbx!" -->
+        </choice>
+        <!-- END OF choice "?mbxExists?" -->
+      </sequence>
+    </choice>
+
+    <choice name="?testJava?">
+      <select>
+        <case ref="testJava?" activity="testJava!" />
+      </select>
+      <sequence name="testJava!">
+
+        <operation name="LJDBC:_Get_Transfer">
+          <participant name="AZ_JDBC_ADAPTER_01" />
+          <output message="LightweightJDBCAdapterTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="pool">mssqlPool</assign>
+            <assign to="query_type">SELECT</assign>
+            <assign to="result_name">result</assign>
+            <assign to="row_name">row</assign>
+            <assign to="sql">SELECT * FROM AZ_WF_INPUT</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="DB" from="DocToDOM(PrimaryDocument, 'false', 'false')" append="true" />
+            <assign to="DB2" from="DocToDOM(PrimaryDocument, 'false', 'false')" append="true" />
+          </input>
+        </operation>
+        <assign to="DB/result/i">2</assign>
+        <operation name="JavaTask">
+          <participant name="AZ_JavaTaskService" />
+          <!-- If file is uploaded with POST, the PrimaryDocument is MIME encoded, so we'll extract HTTP header info (mime type, filename) and payload-->
+          <output message="Xout">
+            <assign to="." from="*" />
+            <assign to="srcLocationMode">inline</assign>
+            <!-- change 10. -->
+            <assign to="javaSrc"><![CDATA[
+              import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
+              import com.sterlingcommerce.woodstock.util.frame.Manager;
+              import java.util.Properties; import java.util.Arrays;
+              log.log("getPropertyKeys(): " + Arrays.toString(Manager.getPropertyKeys()));
+              log.log("getProperties(): " + Manager.getProperties());
+              log.log("getProperties(cla2server): " + Manager.getProperties("cla2server"));
+
+
+              String p = Manager.getProperty("az_filetransfer", "ADD_REMOVE_TRANSFERID");
+              wfc.addWFContent("ADD_REMOVE_TRANSFERID", p);
+              Manager.setProperty("az_filetransfer", "ADD_REMOVE_TRANSFERID", "false");
+              wfc.addWFContent("ADD_REMOVE_TRANSFERID_NEW", Manager.getProperty("az_filetransfer", "ADD_REMOVE_TRANSFERID"));
+              if (Manager.getProperties("az_temp") == null) {
+                log.log("Create new properties az_temp uhu...");
+                Manager.setVendorProperties("az_temp", new Properties());
+                Manager.setProperty("az_temp", "USER001", "0");
+              }
+              log.log("az_temp/USER001: OLD " + Manager.getProperty("az_temp", "USER001"));
+              Manager.setProperty("az_temp", "USER001", String.valueOf(Manager.getIntProperty("az_temp", "USER001", -1) + 1));
+              wfc.addWFContent("USER001", Manager.getProperty("az_temp", "USER001"));
+              wfc.addWFContent("TestXPath", (String)wfc.getWFContent("/ProcessData/DB/result/row[1]/FLOW_ID"));
+              wfc.addWFContent("WFCClass", wfc.getClass().getName());
+              wfc.addWFContent("WFCLocation", wfc.getClass().getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
+              String[] keys = new String[] { "FLOW_ID", "NOTIFY_SUCCESS", "NOTEXIST", "KEEP_FILE" };
+              for (int i = 0; i < keys.length; i++) {
+                String k = "/ProcessData/DB/result/row[1]/" + keys[i];
+                try {
+                  Object v = wfc.getWFContent(k);
+                  log.log("Key " + k + ", v = " + (v == null ? "null" : v.toString() + "["+v.getClass()+"]"));
+                  if (v != null && v instanceof String) {
+                    log.log("Key " + k + ": string = " + (String)v);
+                  } else {
+                    log.log("Key " + k + ": null/empty");
+                  }
+                } catch (Exception e) {
+                  wfc.setErrorAdd(true);
+                  wfc.setAdvancedStatus("Exc ("+k+"): " + e.getMessage());
+                }
+              }
+              String xp = "DB/result/i";
+              log.log(xp + " -> " + wfc.getWFContent(xp, true));
+              xp = "DB/result/row[number(DB/result/i)]/FLOW_ID";
+              log.log(xp + " -> " + wfc.getWFContent(xp, true));
+              xp = "DB/result/row[number(/ProcessData/DB/result/i)]/FLOW_ID";
+              log.log(xp + " -> " + wfc.getWFContent(xp, true));
+              xp = "DB/result/row[/ProcessData/DB/result/i]/FLOW_ID";
+              log.log(xp + " -> " + wfc.getWFContent(xp, true));
+              Node n = (Node)wfc.getWFContent("DB/result");
+              NodeList nl = n.getChildNodes();
+              while (nl.getLength() > 1)
+                n.removeChild(n.getLastChild());
+              n = (Node)wfc.getWFContent("DB2/result");
+              nl = n.getChildNodes();
+              for (int i = nl.getLength() - 1; i >= 0; i--) {
+                Element e = (Element)nl.item(i);
+                if(e.getElementsByTagName("FLOW_ID").item(0).getTextContent().contains("DEV")) {
+                  n.removeChild(e);
+                }
+              }
+              return "OK";
+            ]]>            </assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+      </sequence>
+    </choice>
+
+    <choice name="?testCLA?">
+      <select>
+        <case ref="testCLA?" activity="testCLA!" />
+      </select>
+      <sequence name="testCLA!">
+        <operation name="CLA2_EXECUTE">
+          <participant name="AZ_CLA_01" />
+          <output message="CmdLine2InputMessage">
+            <assign to="useInput">false</assign>
+            <assign to="useOutput">false</assign>
+            <assign to="cmdLine">echo "Hello (input=$Input, output=$Output)"</assign>
+            <assign to="PrimaryDocument" from="/ProcessData/FilePrimaryDocument/@*" />
+            <assign to="createUniqueDirForEachFile">Yes</assign>
+            <assign to="workingDir">/ibm/resources/tmp</assign>
+            <assign to="cla2_debug">true</assign>
+            <assign to="successValue">0</assign>
+            <assign to="inputName">input.dat</assign>
+            <assign to="setSoTimeout">5000</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="CLA2_RESULT" from="*" append="true" />
+          </input>
+        </operation>
+
+      </sequence>
+    </choice>
+
+    <choice name="?other?">
+      <select>
+        <case ref="other?" activity="other!" />
+      </select>
+      <sequence name="other!">
+        <operation name="ObscureParameter">
+          <participant name="AZ_OBSCURE_DATA_01" />
+          <output message="ObscureParameterInputMessage">
+            <assign to="." from="*"></assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+        <operation name="Assign:test">
+          <participant name="AssignService" />
+          <output message="Xout">
+            <assign to="dir" from="sci-get-property('b2bis', 'directory')" />
+            <assign to="val1">VAL1</assign>
+            <assign to="val2">VAL1</assign>
+            <assign to="result1" from="if(string-length(val1) &gt; 0, concat(val1, '-'), val1)" />
+            <assign to="TEST/UHU/TEST1" from="string('Hello world!')" append="true" />
+            <assign to="TEST/UHU/TEST2" from="string('')" />
+            <assign to="LIST/ITEM" append="true">Item 1</assign>
+            <assign to="LIST/ITEM" append="true">Item 2</assign>
+            <assign to="LIST/ITEM" append="true">Item 3</assign>
+            <assign to="OBSCURED_STRING">AAAALgAAAAAAAAAQ</assign>
+            <assign to="CLEAR_STRING">Hello</assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <assign to="FOUNDITEM" from="/ProcessData/LIST/ITEM/text()" />
+        <assign to="p1" from="revealObscured(param1)" />
+        <assign to="p2" from="revealObscured(param2)" />
+        <assign to="REVEALED" from="revealObscured(OBSCURED_STRING)" />
+        <operation name="JavaTask">
+          <participant name="AZ_JavaTaskService" />
+          <output message="Xout">
+            <assign to="." from="*" />
+            <assign to="srcLocationMode">inline</assign>
+            <!-- change 23. -->
+            <assign to="javaSrc"><![CDATA[
+              import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
+              String[] xpaths = new String[] { "val1", "valX", "/ProcessData/TEST/UHU", "/ProcessData/TEST/UHU/TEST1", "/ProcessData/TEST/UHU/TEST2",
+                  "/ProcessData/LIST", "/ProcessData/LIST/ITEM", "/ProcessData/LIST/ITEM/text()", "/ProcessData/LIST/text()" };
+              for (int i = 0; i < xpaths.length; i++) {
+                String xp = xpaths[i];
+                Object o = wfc.getWFContent(xp);
+                wfc.addWFContent("LOG/MSG_" + i, "Key " + xp + ": " + o + " [" + (o != null ? "class=" + o.getClass() : "null") + "].");
+                if (o instanceof NodeList) {
+                  NodeList nl = (NodeList) o;
+                  wfc.addWFContent("LOG/MSG_" + i, "Key " + xp + ": NodeList length=" + nl.getLength());
+                  for (int ni = 0; ni < nl.getLength(); ni++) {
+                    Node n = nl.item(ni);
+                    wfc.addWFContent("LOG/MSG_" + i,
+                        "Key " + xp + ": -> node " + ni + ": localName=" + n.getLocalName() + ", name=" + n.getNodeName() + ", type="
+                            + Short.toString(n.getNodeType()) + ", hasChildren="
+                            + (n.hasChildNodes() ? Integer.toString(n.getChildNodes().getLength()) : "no") + ", val=" + n.getNodeValue() + ", text="
+                            + n.getTextContent() + ", parent=" + n.getParentNode().getLocalName());
+                    if (n.hasChildNodes()) {
+                      NodeList cl = n.getChildNodes();
+                      for (int ci = 0; ci < cl.getLength(); ci++) {
+                        Node cn = cl.item(ci);
+                        wfc.addWFContent("LOG/MSG_" + i,
+                            "Key " + xp + ": ---> child " + ci + ": localName=" + cn.getLocalName() + ", name=" + n.getNodeName() + ", type="
+                                + Short.toString(cn.getNodeType()) + ", hasChildren="
+                                + (cn.hasChildNodes() ? Integer.toString(cn.getChildNodes().getLength()) : "no") + ", val=" + cn.getNodeValue()
+                                + ", text=" + cn.getTextContent() + ", parent=" + cn.getParentNode().getLocalName());
+                      }
+                    }
+                  }
+                }
+                if (o instanceof Node) {
+                  Node n = (Node) o;
+                  wfc.addWFContent("LOG/MSG_" + i, "Key " + xp + ": Node name " + n.getLocalName() + ", name=" + n.getNodeName() + ", children: "
+                      + (n.hasChildNodes() ? Integer.toString(n.getChildNodes().getLength()) : "no") + ", parent=" + n.getParentNode().getLocalName());
+                  if (n.hasChildNodes()) {
+                    NodeList cl = n.getChildNodes();
+                    for (int ci = 0; ci < cl.getLength(); ci++) {
+                      Node cn = cl.item(ci);
+                      wfc.addWFContent("LOG/MSG_" + i,
+                          "Key " + xp + ": -> child " + ci + ": localName=" + cn.getLocalName() + ", name=" + n.getNodeName() + ", type="
+                              + Short.toString(cn.getNodeType()) + ", hasChildren="
+                              + (cn.hasChildNodes() ? Integer.toString(cn.getChildNodes().getLength()) : "no") + ", val=" + cn.getNodeValue()
+                              + ", text=" + cn.getTextContent() + ", parent=" + cn.getParentNode().getLocalName());
+                    }
+                  }
+                }
+              }
+
+              // add/set
+              wfc.setWFContent("NEW_FLAT", "New value.");
+              wfc.setWFContent("TEST/UHU/TEST1", "Hello new world!");
+              wfc.setWFContent("TEST/UHU/TEST2", "No with content");
+              wfc.setWFContent("TEST/UHU/TEST3", "New subnode");
+              wfc.addWFContent("result1", "Added...");
+              wfc.addWFContent("LIST/ITEM", "Added new item...");
+              wfc.setWFContent("NEW/NEW_VAL1", "New value.");
+
+              // Nodes
+              Node newNode = ((Node)wfc.getWFContent("/ProcessData")).getOwnerDocument().createElement("NEW_ELEMENT");
+              newNode.setTextContent("Content...");
+              wfc.addWFContent("NEW_NODES", newNode);
+              return "OK";
+            ]]>            </assign>
+          </output>
+          <input message="Xin">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+
+      </sequence>
+    </choice>
+
+    <choice name="?testSFTP?">
+      <select>
+        <case ref="testSFTP?" activity="testSFTP" />
+      </select>
+      <sequence name="testSFTP">
+        <operation name="SFTP Client Begin Session Service">
+          <participant name="SFTPClientBeginSession" />
+          <output message="BeginSessionRequest">
+            <assign to="." from="*" />
+            <assign to="ProfileId">lenny:node1:18833afed16:91432</assign>
+            <assign to="SFTPClientAdapter">AZ_SFTP_CLIENT_ADAPTER_INT</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="/ProcessData/SessionToken" from="string(/inmsg/SessionToken)" />
+            <assign to="TMP_STEP/BeginSessionResult" from="*" append="true" />
+          </input>
+        </operation>
+        <operation name="SFTP Client LIST Service">
+          <participant name="SFTPClientList" />
+          <output message="ListRequest">
+            <assign to="SessionToken" from="string(/ProcessData/SessionToken)" />
+            <assign to="ListNamesErrorSetSuccess">Yes</assign>
+            <assign to="RemoteFileName">*</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="TMP_STEP/LIST" from="*" />
+          </input>
+        </operation>
+        <operation name="SFTP Client End Session Service">
+          <participant name="SFTPClientEndSession" />
+          <output message="SFTPClientEndSessionServiceTypeInputMessage">
+            <assign to="SessionToken" from="string(/ProcessData/SessionToken)" />
+          </output>
+          <input message="inmsg">
+            <assign to="TMP_STEP/EndSessionResults" from="*" append="true" />
+          </input>
+        </operation>
+        <operation name="Release Service">
+          <participant name="ReleaseService" />
+          <output message="ReleaseServiceTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="TARGET">/ProcessData/SessionToken</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*" />
+          </input>
+        </operation>
+        <onFault>
+          <sequence name="ErrorEvent">
+            <choice name="?HaveSessionToken?">
+              <select>
+                <case ref="HaveSessionToken?" activity="HaveSessionToken!" />
+              </select>
+              <sequence name="HaveSessionToken!">
+                <operation name="SFTP Client End Session Service">
+                  <participant name="SFTPClientEndSession" />
+                  <output message="SFTPClientEndSessionServiceTypeInputMessage">
+                    <assign to="SessionToken" from="string(/ProcessData/SessionToken)" />
+                  </output>
+                  <input message="inmsg">
+                    <assign to="TMP_STEP/EndSessionResultsOnFault" from="*" append="true" />
+                  </input>
+                </operation>
+              </sequence>
+            </choice>
+          </sequence>
+        </onFault>
+
+      </sequence>
+    </choice>
+
+    <choice name="?testZIP?">
+      <select>
+        <case ref="testZIP?" activity="testZIP" />
+      </select>
+      <sequence name="testZIP">
+        <operation name="Decompress">
+          <participant name="CompressionService" />
+          <output message="outputMessage">
+            <assign to="." from="*"></assign>
+            <assign to="config">Compression_Service</assign>
+            <assign to="compression_action">decompress</assign>
+            <assign to="decompress_result">start_bpml</assign>
+            <assign to="bpml_name">A0_TEST_BP_DOC</assign>
+          </output>
+          <input message="inputMessage">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+      </sequence>
+    </choice>
+
+    <choice name="?testDB?">
+      <select>
+        <case ref="testDB?" activity="testDB" />
+      </select>
+      <sequence name="testDB">
+        <assign to="AZ_DB_POOL" from="sci-get-property('az_filetransfer', 'AZ_DB_POOL')" />
+        <assign to="/ProcessData/AZ_STATS/PRODUCER" append="true">A0_TESTPROD01</assign>
+
+        <operation name="LJDBC:_Get_Transfer">
+          <participant name="AZ_JDBC_ADAPTER_01" />
+          <output message="LightweightJDBCAdapterTypeInputMessage">
+            <assign to="." from="*" />
+            <assign to="param1">/AZTech/MFTTest/testing</assign>
+            <assign to="paramtype1">String</assign>
+            <assign to="param2">A0_TEST01</assign>
+            <assign to="paramtype2">String</assign>
+            <assign to="pool" from="string(/ProcessData/AZ_DB_POOL)" />
+            <assign to="query_type">SELECT</assign>
+            <assign to="result_name">result</assign>
+            <assign to="row_name">row</assign>
+            <assign to="sql">DECLARE @path nvarchar(255)
+              DECLARE @parent nvarchar(255)
+              DECLARE @user nvarchar(40)
+              SELECT @path=?
+              SELECT @parent = LEFT(@path, LEN(@path) - CHARINDEX('/', REVERSE(@path) ))
+              SELECT @user=?
+              SELECT 
+                'DIR' TYPE, 
+                CASE 
+                WHEN mbx.[PATH] = @path THEN '.'
+                WHEN mbx.[PATH] = @parent THEN '..'
+                ELSE mbx.[PATH] 
+                END DISPLAY,
+                mbx.[PATH], 
+                mbx.MAILBOX_ID, 
+                vr.MAILBOX_ID VIRTUAL_ROOT_ID
+              FROM MBX_MAILBOX mbx 
+              JOIN YFS_RESOURCE mbxr ON mbxr.RESOURCE_TYPE = '1' AND mbxr.RESOURCE_ID = CONCAT(mbx.[PATH], '.mbx')
+              JOIN MBX_MAILBOX pmb ON pmb.MAILBOX_ID = mbx.PARENT_ID 
+              JOIN YFS_RESOURCE pmbr ON pmbr.RESOURCE_TYPE = '1' AND pmbr.RESOURCE_ID = CONCAT(mbx.[PATH], '.mbx')
+              JOIN ( 
+                SELECT vr.USER_ID ,vrmb.[PATH], vrmb.MAILBOX_ID 
+                FROM MBX_VIRTUAL_ROOT vr 
+                JOIN MBX_MAILBOX vrmb ON vr.ROOT_MAILBOX_ID = vrmb.MAILBOX_ID 
+              ) vr ON LEFT(mbx.[PATH], LEN(vr.[PATH])) = vr.[PATH]
+              WHERE vr.USER_ID=@user
+              AND (pmb.[PATH] = @path OR mbx.[PATH] = @path OR mbx.[PATH] = @parent)
+            </assign>
+          </output>
+          <input message="inmsg">
+            <assign to="AZ_STATS/CSLM_LOG_TENANT" from="DocToDOM(PrimaryDocument, 'false', 'false')//P_CSLM_TENANT/text()" />
+          </input>
+        </operation>
+        <operation name="LJDBC:_Get_Transfer">
+          <participant name="AZ_JDBC_ADAPTER_01" />
+          <output message="LightweightJDBCAdapterTypeInputMessage">
+            <assign from="*" to="." />
+            <assign to="param1">Update 1</assign>
+            <assign to="paramtype1">String</assign>
+            <assign to="param2">Update 2</assign>
+            <assign to="paramtype2">String</assign>
+            <assign from="string(/ProcessData/AZ_DB_POOL)" to="pool" />
+            <assign to="query_type">ACTION</assign>
+            <assign to="result_name">result</assign>
+            <assign to="row_name">row</assign>
+            <assign to="sql">
+              UPDATE A0_TESTTAB set TEXT_FIELD = CONCAT(TEXT_FIELD, ' ', ?) WHERE ID = 2
+              UPDATE A0_TESTTAB set TEXT_FIELD = CONCAT(TEXT_FIELD, ' ', ?) WHERE ID = 1
+            </assign>
+          </output>
+          <input message="inmsg">
+            <assign from="DocToDOM(PrimaryDocument, 'false', 'false')" to="UPDATE" />
+          </input>
+        </operation>
+
+        <operation name="LJDBC:GetFetchHosts">
+          <participant name="AZ_JDBC_ADAPTER_01" />
+          <output message="LightweightJDBCAdapterTypeInputMessage">
+            <assign to="pool" from="string(/ProcessData/AZ_DB_POOL)" />
+            <assign to="query_type">SELECT</assign>
+            <assign to="result_name">result</assign>
+            <assign to="row_name">row</assign>
+            <assign to="sql">SELECT FG_CUST_ID, CUSTOMER_ID, CUSTOMER_NAME, CREATE_TIME FROM AZ_FG_CUSTOMER WHERE FG_CUST_ID IN (1)</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="TMP_STEP/RESULT" from="DocToDOM(/inmsg/PrimaryDocument, 'false', 'false')" append="true" />
+            <assign to="TMP_STEP/FG_CUST_ID" from="DocToDOM(/inmsg/PrimaryDocument, 'false', 'false')/row[1]/FG_CUST_ID/text()" />
+          </input>
+        </operation>
+        <!-- copy SQL result from new LJDBC primary document to /ProcessData/TRANSFER -->
+        <assign to="HOSTS" from="DocToDOM(/ProcessData/TMP_STEP/DB/PrimaryDocument, 'false', 'false')" append="true" />
+      </sequence>
+    </choice>
+
+    <choice name="?testMBOX?">
+      <select>
+        <case ref="testMBOX?" activity="testMBOX" />
+      </select>
+      <sequence name="testMBOX">
+        <assign to="TMP_STEP/check/Mailbox/@Path" from="string('/AZ/AZ_UNROUTED/XapiGenerated')" />
+        <assign to="TMP_STEP/create/Mailbox/@ParentPath" from="string('/AZ/AZ_UNROUTED')" />
+        <assign to="TMP_STEP/create/Mailbox/@Name" from="string('XapiGenerated')" />
+        <assign to="TMP_STEP/create/Mailbox/@Description" from="string('Created by A0_TEST_BP')" />
+        <assign to="TMP_STEP/XapiIn" from="DOMToDoc(/ProcessData/TMP_STEP/Mailbox)" />
+        <operation name="XAPI Service">
+          <participant name="XAPIService" />
+          <output message="XAPIServiceTypeInputMessage">
+            <assign to="PrimaryDocument" from="DOMToDoc(/ProcessData/TMP_STEP/check/Mailbox)/@*" />
+            <assign to="api">getMailboxDetails</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="TMP_STEP/check/Result" from="DocToDOM(/inmsg/PrimaryDocument, 'false', 'false')" append="true" />
+          </input>
+        </operation>
+        <operation name="XAPI Service">
+          <participant name="XAPIService" />
+          <output message="XAPIServiceTypeInputMessage">
+            <assign to="PrimaryDocument" from="DOMToDoc(/ProcessData/TMP_STEP/create/Mailbox)/@*" />
+            <assign to="api">createMailbox</assign>
+          </output>
+          <input message="inmsg">
+            <assign to="." from="*"></assign>
+          </input>
+        </operation>
+      </sequence>
+    </choice>
+  </sequence>
+</process>

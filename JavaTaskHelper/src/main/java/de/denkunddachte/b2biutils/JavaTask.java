@@ -30,6 +30,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Encoder;
@@ -60,6 +63,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
+import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
+import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
+
 /**
  * JavaTask tester. Use to debug JavaTask code with mocked ProcessData and PrimaryDocuments.
  *
@@ -80,9 +87,9 @@ public final class JavaTask {
   // If you want to use JDBCService, provide info, if not, leave JDBC_URL empty.
   private static final String        JDBC_POOL     = "mssqlPool";
   private static final String        JDBC_DRIVER   = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-  private static final String        JDBC_URL      = "jdbc:sqlserver://dbhost:1433;databaseName=SFGDEV1DB;SelectMethod=cursor;sslProtocol=TLSv1.2;trustServerCertificate=true";
+  private static final String        JDBC_URL      = "jdbc:sqlserver://garfield:1433;databaseName=SFGDEV1DB;SelectMethod=cursor;sslProtocol=TLSv1.2;trustServerCertificate=true";
   private static final String        JDBC_USER     = "sfgdev1user";
-  private static final String        JDBC_PASSWORD = "GehHeim!";
+  private static final String        JDBC_PASSWORD = "01Jul.2021";
   private static final MockWFContext wfc           = new JavaTask.MockWFContext();
   private static final MockXLogger   log           = new JavaTask.MockXLogger();
   private static final MockManager   Manager       = new MockManager(); // Manager is static class in B2Bi
@@ -101,7 +108,7 @@ public final class JavaTask {
   /**
    * Define your test code in public static test<name>(String... args) methods here:
    */
-  
+
   /**
    * IBM's sample JavaTask (see <a href="https://www.ibm.com/support/pages/how-work-ibm-sterling-b2b-integrator-javatask-service">...</a>)
    * @return String ("OK")
@@ -134,11 +141,11 @@ public final class JavaTask {
     // import java.io.InputStream; import java.io.OutputStream;
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import com.sterlingcommerce.woodstock.util.frame.Manager;
-    
-    //Setup dummy property:
+
+    // Setup dummy property:
     Manager.setProperty("myprops", "test", "Test value.");
-    // 
-    
+    //
+
     String test = Manager.getProperty("myprops", "test");
     log.log("Run JavaTaskSample... test=" + test);
     Random randomGenerator = new Random();
@@ -203,9 +210,9 @@ public final class JavaTask {
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import java.util.Base64; import java.util.Base64.Encoder;
     // import java.io.InputStream; import java.io.OutputStream;
-    
+
     // PrimaryDocumentData: Hello World!
-    
+
     Encoder      enc    = Base64.getEncoder();
     Document     doc    = wfc.getPrimaryDocument();
     Document     newDoc = new Document();
@@ -219,6 +226,139 @@ public final class JavaTask {
     is.close();
     os.close();
     wfc.putPrimaryDocument(newDoc);
+    return "OK";
+  }
+
+  public static String testExecuteBP(String... args) throws Exception {
+
+    // import java.sql.Connection; import java.sql.PreparedStatement; import java.sql.ResultSet; import java.sql.SQLException;
+    // import org.w3c.dom.Node; import org.w3c.dom.NodeList;import org.w3c.dom.Element;
+    // import java.util.regex.Pattern; import java.util.Scanner; import java.util.regex.Matcher;
+    // import com.sterlingcommerce.woodstock.util.frame.jdbc.JDBCService;
+    // import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
+    // import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
+    // import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
+
+    final String           bpName       = (String) wfc.getWFContent("bpname");
+    final String           documentName = (String) wfc.getWFContent("BodyName");
+    final String           METHOD       = "executeBP";
+
+    InitialWorkFlowContext iwfc         = new InitialWorkFlowContext();
+    iwfc.setInitiatorName("DD_API_WS");
+    iwfc.setQueueWorkFlowDataOnError(false);
+    int         wfdId = WorkFlowDef.getIDForName(bpName);
+    WorkFlowDef wfd   = new WorkFlowDef(wfdId);
+    iwfc.setWorkFlowName(wfd.getName());
+    iwfc.setWorkFlowDefId(wfdId);
+    log.log(String.format("%s: wfdName=%s, wfdId=%s, wfdDefaultVersion=%s, wfdVersion=%s", METHOD, wfd.getName(), wfd.getWorkFlowDefinitionID(),
+        wfd.getDefaultVersion(), wfd.getVersion()));
+    iwfc.setStepTrace(false);
+    iwfc.setIgnoreWorkFlowIdFileName(true);
+    if (wfc.getPrimaryDocument() != null) {
+      log.log(String.format("%s: docId=%s, doc=%s", "executeBP", wfc.getPrimaryDocument()));
+      // iwfc.putPrimaryDocument(wfc.getPrimaryDocument());
+      iwfc.setDocumentName(documentName);
+    }
+    log.log(String.format("%s: Starting BP %s [WFD_ID=%s, Version=%s]...", METHOD, bpName, wfd.getWorkFlowDefinitionID(), wfd.getVersion()));
+    WorkFlowContextCookie cookie = iwfc.start();
+    if (cookie != null) {
+      log.log(String.format("%s: Started BP: %s, WFC_ID=%s, status=%s", METHOD, bpName, cookie.getWorkFlowContextId(),
+          (cookie.getWorkFlowContext() != null ? cookie.getWorkFlowContext().getExecutionStatus() : "null")));
+    } else {
+      log.log(String.format("%s: cookie is null!", METHOD));
+      return "NOK";
+    }
+
+    // cookie.
+
+    return "OK";
+  }
+
+  public static String testInvokeBP(String... args) throws Exception {
+    // Embedded ProcessData to use for this test (alternatively use -p <file> to provide your own):
+    // <ProcessData>
+    // <BP><ID>999999</ID><MAIN</BP>
+    // <INVOKE>
+    // <WFD_NAME>A0_TEST_INVOKE</WFD_NAME>
+    // <COUNT>10</COUNT>
+    // <ACTIVE_DAYS>730</ACTIVE_DAYS>
+    // <QUEUE_NAME>730</QUEUE_NAME>
+    // </INVOKE>
+    // </ProcessData>
+    //
+
+    // import java.sql.Connection; import java.sql.PreparedStatement; import java.sql.ResultSet; import java.sql.SQLException;
+    // import com.sterlingcommerce.woodstock.util.frame.jdbc.JDBCService;
+    // import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
+    // import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
+    // import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
+
+    final String      initiator   = (String) wfc.getWFContent("BP/MAIN");
+    final String      initiatorId = (String) wfc.getWFContent("BP/ID");
+    final String      bpName      = (String) wfc.getWFContent("INVOKE/WFD_NAME");
+    final int         count       = Integer.parseInt((String) wfc.getWFContent("INVOKE/COUNT"));
+    final int         days        = Integer.parseInt((String) wfc.getWFContent("INVOKE/ACTIVE_DAYS"));
+    final String      bpQueue     = (String) wfc.getWFContent("INVOKE/QUEUE_NAME");
+    final String      METHOD      = "testInvokeBP";
+    final String      SQL_SELECT  = "DECLARE @days INT = ?, @count INT = ?\n"
+        + "SELECT TOP(@count) c.FG_CUST_ID, c.CUSTOMER_ID, c.CUSTOMER_NAME, c.LAST_ACTIVE  FROM AZ_FG_CUSTOMER c WHERE c.LAST_ACTIVE > DATEADD(DAY, @days * -1, GETDATE())";
+    Connection        con         = null;
+    PreparedStatement ps          = null;
+    try {
+      con = JDBCService.getConnection();
+      ps = con.prepareStatement(SQL_SELECT);
+      ps.setInt(1, days);
+      ps.setInt(2, count);
+      ResultSet rs  = ps.executeQuery();
+      int       row = 0;
+      while (rs.next()) {
+        log.log(METHOD + ": row " + ++row + ": custId " + rs.getString("CUSTOMER_ID"));
+        InitialWorkFlowContext iwfc = new InitialWorkFlowContext();
+        iwfc.setInitiatorName(initiator);
+        iwfc.setQueueWorkFlowDataOnError(false);
+        int         wfdId = WorkFlowDef.getIDForName(bpName);
+        WorkFlowDef wfd   = new WorkFlowDef(wfdId);
+        iwfc.setWorkFlowName(wfd.getName());
+        iwfc.setWorkFlowDefId(wfdId);
+        // add some process data:
+        // DO NOT USE TAGS: PARENT_SERVICE_NAME, PARENT_WF_ID!
+        iwfc.addContentElement("PARENTNAME", initiator);
+        iwfc.addContentElement("PARENTID", initiatorId);
+        iwfc.addContentElement("ROW", String.valueOf(row));
+        iwfc.addContentElement("FgCustId", rs.getString("FG_CUST_ID"));
+        iwfc.addContentElement("CustomerId", rs.getString("CUSTOMER_ID"));
+        iwfc.addContentElement("CustomerName", rs.getString("CUSTOMER_NAME"));
+        iwfc.addContentElement("LastActive", rs.getString("LAST_ACTIVE"));
+
+        log.log(METHOD + ": wfdName=" + wfd.getName() + ", wfdId=" + wfd.getWorkFlowDefinitionID() + ", wfdDefaultVersion=" + wfd.getDefaultVersion()
+            + ", wfdVersion=" + wfd.getVersion());
+        iwfc.setStepTrace(false);
+        iwfc.setIgnoreWorkFlowIdFileName(true);
+        WorkFlowContextCookie cookie;
+        if (bpQueue == null || bpQueue.isEmpty()) {
+          log.log(METHOD + ": Starting BP " + bpName + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version=" + wfd.getVersion() + "]...");
+          cookie = iwfc.start();
+        } else {
+          iwfc.setNoneBPQueueInfo(bpQueue);
+          log.log(METHOD + ": Starting BP (ASYNC) " + bpName + " on q " + bpQueue + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version="
+              + wfd.getVersion() + "]...");
+          cookie = iwfc.asyncStart();
+        }
+        if (cookie != null) {
+          log.log(METHOD + ": Started BP " + bpName + ", WFC_ID=" + cookie.getWorkFlowContextId() + ", status="
+              + (cookie.getWorkFlowContext() != null ? cookie.getWorkFlowContext().getExecutionStatus() : "null"));
+          wfc.addWFContent("INVOKED", String.valueOf(cookie.getWorkFlowId()));
+          cookie.notify();
+        } else {
+          log.log(METHOD + ": cookie is null!");
+          return "NOK";
+        }
+      }
+    } catch (SQLException e) {
+      wfc.setBasicStatus(1);
+      wfc.setAdvancedStatus(e.getMessage());
+      throw e;
+    }
     return "OK";
   }
 
@@ -354,11 +494,12 @@ public final class JavaTask {
   }
 
   private static File getSourceFile() {
-    File f = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(), JavaTask.class.getName().replace(".", "/") + ".java");
+    File         f  = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
+        JavaTask.class.getName().replace(".", "/") + ".java");
     // If running in eclipse, look for source file in src folder (assuming default output mapping src/main/java -> bin/main)
-    final String LF = (new File(".")).separator;
+    final String LF = File.separator;
     if (!f.exists()) {
-      f = new File(f.getAbsolutePath().replace( "/bin/main/".replace("/", LF), "/src/main/java/".replace("/", LF)));
+      f = new File(f.getAbsolutePath().replace("/bin/main/".replace("/", LF), "/src/main/java/".replace("/", LF)));
     }
     return f;
   }
@@ -944,7 +1085,7 @@ public final class JavaTask {
     }
 
     public static Connection getConnection(String poolName) throws Exception {
-      Class.forName(poolName);
+      Class.forName(instance.jdbcDriver);
       return DriverManager.getConnection(instance.connectionString, instance.username, instance.password);
     }
 

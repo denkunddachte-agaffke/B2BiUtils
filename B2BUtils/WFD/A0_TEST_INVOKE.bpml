@@ -1,0 +1,6 @@
+<process name="A0_TEST_INVOKE">
+  <sequence name="A0_TEST_INVOKE">
+    <assign to="MSG">Hello...</assign>
+  </sequence>
+  <!-- END OF sequence "A0_TEST_INVOKE" -->
+</process>
