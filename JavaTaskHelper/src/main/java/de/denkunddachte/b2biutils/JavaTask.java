@@ -313,8 +313,10 @@ public final class JavaTask {
       ps.setInt(2, count);
       ResultSet rs  = ps.executeQuery();
       int       row = 0;
+      String node;
       while (rs.next()) {
-        log.log(METHOD + ": row " + ++row + ": custId " + rs.getString("DOCUMENT_ID"));
+        node = ++row % 2 == 0 ? "node1" : "node2";
+        log.log(METHOD + ": row " + row + ": custId " + rs.getString("DOCUMENT_ID"));
         InitialWorkFlowContext iwfc = new InitialWorkFlowContext();
         iwfc.setInitiatorName(initiator);
         iwfc.setQueueWorkFlowDataOnError(false);
@@ -322,7 +324,7 @@ public final class JavaTask {
         WorkFlowDef wfd   = new WorkFlowDef(wfdId);
         iwfc.setWorkFlowName(wfd.getName());
         iwfc.setWorkFlowDefId(wfdId);
-        iwfc.setBPMandatoryNode(row % 2 == 0 ? "node1" : "node2");
+        iwfc.setBPMandatoryNode(node);
         // add some process data:
         // DO NOT USE TAGS: PARENT_SERVICE_NAME, PARENT_WF_ID!
         iwfc.addContentElement("PARENTNAME", initiator);
@@ -338,7 +340,7 @@ public final class JavaTask {
         iwfc.setStepTrace(false);
         iwfc.setIgnoreWorkFlowIdFileName(true);
         WorkFlowContextCookie cookie;
-        LockManager.doLock("MyLock-" + rs.getString("DOCUMENT_ID"), "izse364", 60000L, true, true, false, (row % 2 == 0 ? "node1" : "node2"), false);
+        LockManager.doLock("MyLock-" + rs.getString("DOCUMENT_ID"), "izse364", 60000L, true, true, false, node, false);
         if (bpQueue == null || bpQueue.isEmpty()) {
           log.log(METHOD + ": Starting BP " + bpName + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version=" + wfd.getVersion() + "]...");
           cookie = iwfc.start();
