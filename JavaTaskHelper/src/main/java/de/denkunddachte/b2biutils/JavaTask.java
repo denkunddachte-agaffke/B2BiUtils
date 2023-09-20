@@ -277,12 +277,11 @@ public final class JavaTask {
   public static String testInvokeBP(String... args) throws Exception {
     // Embedded ProcessData to use for this test (alternatively use -p <file> to provide your own):
     // <ProcessData>
-    // <BP><ID>999999</ID><MAIN</BP>
+    // <BP><ID>999999</ID><MAIN>A0_TEST_BP</MAIN></BP>
     // <INVOKE>
     // <WFD_NAME>A0_TEST_INVOKE</WFD_NAME>
     // <COUNT>10</COUNT>
-    // <ACTIVE_DAYS>730</ACTIVE_DAYS>
-    // <QUEUE_NAME>730</QUEUE_NAME>
+    // <DAYS>5</DAYS>
     // </INVOKE>
     // </ProcessData>
     //
