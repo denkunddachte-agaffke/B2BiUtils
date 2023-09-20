@@ -93,6 +93,7 @@
               import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
               import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
               import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
+              import com.sterlingcommerce.woodstock.util.frame.lock.LockManager;
           
               final String      initiator   = (String) wfc.getWFContent("BP/MAIN");
               final String      initiatorId = (String) wfc.getWFContent("BP/ID");
@@ -117,6 +118,9 @@
                   InitialWorkFlowContext iwfc = new InitialWorkFlowContext();
                   iwfc.setInitiatorName(initiator);
                   iwfc.setQueueWorkFlowDataOnError(false);
+                  // force "load balancing":
+                  iwfc.setBPMandatoryNode(row % 2 == 0 ? "node1" : "node2");
+
                   int         wfdId = WorkFlowDef.getIDForName(bpName);
                   WorkFlowDef wfd   = new WorkFlowDef(wfdId);
                   iwfc.setWorkFlowName(wfd.getName());
@@ -136,6 +140,8 @@
                   iwfc.setStepTrace(false);
                   iwfc.setIgnoreWorkFlowIdFileName(true);
                   WorkFlowContextCookie cookie;
+                  //LockManager.distLockMgr.lock("MyLock-" + rs.getString("DOCUMENT_ID"), "izse364", 60000L);
+                  LockManager.doLock("MyLock-" + rs.getString("DOCUMENT_ID"), "izse364", 60000L, true, true, false, (row % 2 == 0 ? "node1" : "node2"), false);
                   if (bpQueue == null || bpQueue.isEmpty()) {
                     log.log(METHOD + ": Starting BP " + bpName + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version=" + wfd.getVersion() + "]...");
                     cookie = iwfc.start();

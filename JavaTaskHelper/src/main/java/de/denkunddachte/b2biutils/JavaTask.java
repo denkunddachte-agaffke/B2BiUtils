@@ -63,6 +63,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.sterlingcommerce.woodstock.util.frame.lock.LockManager;
 import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
 import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
 import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
@@ -277,11 +278,12 @@ public final class JavaTask {
   public static String testInvokeBP(String... args) throws Exception {
     // Embedded ProcessData to use for this test (alternatively use -p <file> to provide your own):
     // <ProcessData>
-    // <BP><ID>999999</ID><MAIN>A0_TEST_BP</MAIN></BP>
+    // <BP><ID>999999</ID><MAIN</BP>
     // <INVOKE>
     // <WFD_NAME>A0_TEST_INVOKE</WFD_NAME>
     // <COUNT>10</COUNT>
-    // <DAYS>5</DAYS>
+    // <ACTIVE_DAYS>730</ACTIVE_DAYS>
+    // <QUEUE_NAME>730</QUEUE_NAME>
     // </INVOKE>
     // </ProcessData>
     //
@@ -291,6 +293,7 @@ public final class JavaTask {
     // import com.sterlingcommerce.woodstock.workflow.InitialWorkFlowContext;
     // import com.sterlingcommerce.woodstock.workflow.WorkFlowContextCookie;
     // import com.sterlingcommerce.woodstock.workflow.WorkFlowDef;
+    // import com.sterlingcommerce.woodstock.util.frame.lock.LockManager;
 
     final String      initiator   = (String) wfc.getWFContent("BP/MAIN");
     final String      initiatorId = (String) wfc.getWFContent("BP/ID");
@@ -319,6 +322,7 @@ public final class JavaTask {
         WorkFlowDef wfd   = new WorkFlowDef(wfdId);
         iwfc.setWorkFlowName(wfd.getName());
         iwfc.setWorkFlowDefId(wfdId);
+        iwfc.setBPMandatoryNode(row % 2 == 0 ? "node1" : "node2");
         // add some process data:
         // DO NOT USE TAGS: PARENT_SERVICE_NAME, PARENT_WF_ID!
         iwfc.addContentElement("PARENTNAME", initiator);
@@ -334,6 +338,7 @@ public final class JavaTask {
         iwfc.setStepTrace(false);
         iwfc.setIgnoreWorkFlowIdFileName(true);
         WorkFlowContextCookie cookie;
+        LockManager.doLock("MyLock-" + rs.getString("DOCUMENT_ID"), "izse364", 60000L, true, true, false, (row % 2 == 0 ? "node1" : "node2"), false);
         if (bpQueue == null || bpQueue.isEmpty()) {
           log.log(METHOD + ": Starting BP " + bpName + " [WFC_ID=" + wfd.getWorkFlowDefinitionID() + ", Version=" + wfd.getVersion() + "]...");
           cookie = iwfc.start();
