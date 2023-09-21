@@ -14,9 +14,6 @@ dependencies {
     implementation(project(":ddutils"))
     implementation(project(":B2BApiClient"))
 
-    /* Mail API:*/
-    implementation("com.sun.mail:jakarta.mail:2.0.1")
-
     /* Loader */
     implementation("org.apache.poi:poi:5.2.2")
     implementation("org.apache.poi:poi-ooxml:5.2.2")
