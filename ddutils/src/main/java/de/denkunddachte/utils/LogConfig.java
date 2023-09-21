@@ -124,7 +124,7 @@ public class LogConfig {
   private static void addHandler(Handler handler) {
     rootLogger.addHandler(handler);
     for (String loggerName : IDS) {
-      if (handler.getLevel().intValue() < Logger.getLogger(loggerName).getLevel().intValue()) {
+      if (Logger.getLogger(loggerName).getLevel() == null || (handler.getLevel().intValue() < Logger.getLogger(loggerName).getLevel().intValue())) {
         Logger.getLogger(loggerName).setLevel(handler.getLevel());
       }
     }
