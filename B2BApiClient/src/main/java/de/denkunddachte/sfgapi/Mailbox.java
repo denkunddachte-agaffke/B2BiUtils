@@ -491,7 +491,7 @@ public class Mailbox extends ApiClient {
     try {
       String param = "";
       if (filter != null) {
-        param += "&searchFor=" + urlEncode(filter.replace('*', '%'));
+        param += "&searchFor=" + urlEncode(filter.replace('*', '%').replace('?', '_'));
       }
       if(caseSensitive) {
         param += "&casesensitive=1";

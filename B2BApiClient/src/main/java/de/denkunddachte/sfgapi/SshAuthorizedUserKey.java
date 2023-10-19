@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.xml.xpath.XPath;
@@ -39,120 +40,130 @@ import org.w3c.dom.NodeList;
 import de.denkunddachte.exception.ApiException;
 
 public class SshAuthorizedUserKey extends AbstractSfgKey {
-	private final static Logger		LOGGER		= Logger.getLogger(SshAuthorizedUserKey.class.getName());
-	protected static final String	SVC_NAME	= "sshauthorizeduserkeys";
+  private final static Logger   LOGGER   = Logger.getLogger(SshAuthorizedUserKey.class.getName());
+  protected static final String SVC_NAME = "sshauthorizeduserkeys";
 
-	public SshAuthorizedUserKey() {
-		super();
-	}
+  public SshAuthorizedUserKey() {
+    super();
+  }
 
-	public SshAuthorizedUserKey(String keyName, String keyString, boolean keyStatusEnabled) throws InvalidKeyException {
-		super(keyName, keyString, keyStatusEnabled);
-	}
+  public SshAuthorizedUserKey(String keyName, String keyString, boolean keyStatusEnabled) throws InvalidKeyException {
+    super(keyName, keyString, keyStatusEnabled);
+  }
 
-	private SshAuthorizedUserKey(JSONObject json) throws JSONException {
-		super();
-		this.readJSON(json);
-	}
+  private SshAuthorizedUserKey(JSONObject json) throws JSONException, ApiException {
+    super();
+    this.readJSON(json);
+  }
 
-	@Override
-	public String getServiceName() {
-		return SVC_NAME;
-	}
+  @Override
+  public String getServiceName() {
+    return SVC_NAME;
+  }
 
-	@Override
-	protected SshAuthorizedUserKey readJSON(JSONObject json) throws JSONException {
-		super.readJSON(json);
-		return this;
-	}
+  @Override
+  protected SshAuthorizedUserKey readJSON(JSONObject json) throws JSONException, ApiException {
+    super.readJSON(json);
+    return this;
+  }
 
-	@Override
-	public String toString() {
-		return "SshAuthorizedUserKey [" + super.toString() + "]";
-	}
+  @Override
+  public String toString() {
+    return "SshAuthorizedUserKey [" + super.toString() + "]";
+  }
 
-	// static lookup methods:
-	public static List<SshAuthorizedUserKey> findAll() throws ApiException {
-		return findAll(null);
-	}
+  // static lookup methods:
+  public static List<SshAuthorizedUserKey> findAll() throws ApiException {
+    return findAll(null);
+  }
 
-	public static List<SshAuthorizedUserKey> findAll(String filter, String... includeFields) throws ApiException {
-		if (useWsApi(SVC_NAME)) {
-			return findAllWithWSApi(filter);
-		} else {
-			return findAllWithRESTApi(filter, includeFields);
-		}
-	}
+  public static List<SshAuthorizedUserKey> findAll(String filter, String... includeFields) throws ApiException {
+    if (useWsApi(SVC_NAME)) {
+      return findAllWithWSApi(filter);
+    } else {
+      return findAllWithRESTApi(filter, includeFields);
+    }
+  }
 
-	private static List<SshAuthorizedUserKey> findAllWithWSApi(String filter, String... includeFields) throws ApiException {
-		List<SshAuthorizedUserKey> result = new ArrayList<SshAuthorizedUserKey>();
-		try {
-			Document xmlDoc = getXmlDocumentFromWsApi(SVC_NAME,
-					(filter != null ? "&searchFor=" + urlEncode(filter.replace('*', '%')) : null));
-			XPathFactory xPathFactory = XPathFactory.newInstance();
-			XPath xpath = xPathFactory.newXPath();
-			XPathExpression expr = xpath.compile("/result/row");
-			NodeList nl = (NodeList) expr.evaluate(xmlDoc, XPathConstants.NODESET);
+  private static List<SshAuthorizedUserKey> findAllWithWSApi(String filter, String... includeFields) throws ApiException {
+    List<SshAuthorizedUserKey> result = new ArrayList<SshAuthorizedUserKey>();
+    try {
+      Document        xmlDoc       = getXmlDocumentFromWsApi(SVC_NAME, (filter != null ? "&searchFor=" + urlEncode(filter.replace('*', '%')) : null));
+      XPathFactory    xPathFactory = XPathFactory.newInstance();
+      XPath           xpath        = xPathFactory.newXPath();
+      XPathExpression expr         = xpath.compile("/result/row");
+      NodeList        nl           = (NodeList) expr.evaluate(xmlDoc, XPathConstants.NODESET);
 
-			for (int i = 0; i < nl.getLength(); i++) {
-				Node n = nl.item(i);
-				SshAuthorizedUserKey uk = new SshAuthorizedUserKey((String) xpath.evaluate("./keyName", n, XPathConstants.STRING), (String) xpath.evaluate("./keyData", n, XPathConstants.STRING), true);
-				uk.setGeneratedId(uk.getId());
-				LOGGER.finer("Got SshAuthorizedUserKey: " + uk);
-				result.add(uk);
-			}
-		} catch (UnsupportedEncodingException | XPathExpressionException | InvalidKeyException e) {
-			throw new ApiException(e);
-		}
-		return result;
-	}
+      for (int i = 0; i < nl.getLength(); i++) {
+        Node n = nl.item(i);
+        try {
+          SshAuthorizedUserKey uk = new SshAuthorizedUserKey((String) xpath.evaluate("./keyName", n, XPathConstants.STRING),
+              (String) xpath.evaluate("./keyData", n, XPathConstants.STRING), true);
+          uk.setGeneratedId(uk.getId());
+          LOGGER.finer("Got SshAuthorizedUserKey: " + uk);
+          result.add(uk);
+        } catch (InvalidKeyException e) {
+          final String keyName = (String) xpath.evaluate("./keyName", n, XPathConstants.STRING);
+          LOGGER.log(Level.WARNING, e, () -> "Found invalid SSH key " + keyName + ": " + e.getMessage());
+        }
+      }
+    } catch (UnsupportedEncodingException | XPathExpressionException e) {
+      throw new ApiException(e);
+    }
+    return result;
+  }
 
-	// static lookup methods:
-	private static List<SshAuthorizedUserKey> findAllWithRESTApi(String globPattern, String ... includeFields) throws ApiException {
-		List<SshAuthorizedUserKey> result = new ArrayList<SshAuthorizedUserKey>();
-		try {
-			Map<String, Object> params = new HashMap<String, Object>();
-			params.put("offset", 0);
-			params.put("includeFields", includeFields);
-			params.put("searchFor", (globPattern != null ? globPattern.replace('*', '%') : null));
-			while (true) {
-				JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
-				for (int i = 0; i < jsonObjects.length(); i++) {
-					result.add(new SshAuthorizedUserKey(jsonObjects.getJSONObject(i)));
-				}
-				if (jsonObjects.length() < API_RANGESIZE)
-					break;
-			}
-		} catch (JSONException | UnsupportedEncodingException e) {
-			throw new ApiException(e);
-		}
-		return result;
-	}
+  // static lookup methods:
+  private static List<SshAuthorizedUserKey> findAllWithRESTApi(String globPattern, String... includeFields) throws ApiException {
+    List<SshAuthorizedUserKey> result = new ArrayList<SshAuthorizedUserKey>();
+    try {
+      Map<String, Object> params = new HashMap<String, Object>();
+      params.put("offset", 0);
+      params.put("includeFields", includeFields);
+      params.put("searchFor", (globPattern != null ? globPattern.replace('*', '%') : null));
+      while (true) {
+        JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
+        for (int i = 0; i < jsonObjects.length(); i++) {
+          try {
+            result.add(new SshAuthorizedUserKey(jsonObjects.getJSONObject(i)));
+          } catch (ApiException e) {
+            final String keyName = jsonObjects.getJSONObject(i).optString("keyName");
+            LOGGER.log(Level.WARNING, e, () -> "Found invalid SSH key " + keyName + ": " + e.getMessage());
+          }
+        }
+        if (jsonObjects.length() < API_RANGESIZE)
+          break;
+      }
+    } catch (JSONException | UnsupportedEncodingException e) {
+      throw new ApiException(e);
+    }
+    return result;
+  }
 
-	// find by key
-	public static SshAuthorizedUserKey find(String keyName) throws ApiException {
-		SshAuthorizedUserKey result = null;
-		JSONObject json = findByKey(SVC_NAME, keyName);
-		try {
-			if (json.has("errorCode")) {
-				LOGGER.finer("SshAuthorizedUserKey " + keyName + " not found: errorCode=" + json.getInt("errorCode")
-						+ ", errorDescription=" + json.get("errorDescription") + ".");
-			} else {
-				result = new SshAuthorizedUserKey(json);
-				LOGGER.finer("Found SshAuthorizedUserKey " + keyName + ": " + result);
-			}
-		} catch (JSONException e) {
-			throw new ApiException(e);
-		}
-		return result;
-	}
+  // find by key
+  public static SshAuthorizedUserKey find(String keyName) throws ApiException {
+    SshAuthorizedUserKey result = null;
+    JSONObject           json   = findByKey(SVC_NAME, keyName);
+    try {
+      if (json.has("errorCode")) {
+        LOGGER.finer("SshAuthorizedUserKey " + keyName + " not found: errorCode=" + json.getInt("errorCode") + ", errorDescription="
+            + json.get("errorDescription") + ".");
+      } else {
+        result = new SshAuthorizedUserKey(json);
+        LOGGER.finer("Found SshAuthorizedUserKey " + keyName + ": " + result);
+      }
+    } catch (JSONException e) {
+      throw new ApiException(e);
+    }
+    return result;
+  }
 
-	public static boolean exists(SshAuthorizedUserKey key) throws ApiException {
-		return exists(key.getId());
-	}
+  public static boolean exists(SshAuthorizedUserKey key) throws ApiException {
+    return exists(key.getId());
+  }
 
-	public static boolean exists(String keyName) throws ApiException {
-		JSONObject json = findByKey(SVC_NAME, keyName);
-		return json.has(ID_PROPERTY);
-	}
+  public static boolean exists(String keyName) throws ApiException {
+    JSONObject json = findByKey(SVC_NAME, keyName);
+    return json.has(ID_PROPERTY);
+  }
 }

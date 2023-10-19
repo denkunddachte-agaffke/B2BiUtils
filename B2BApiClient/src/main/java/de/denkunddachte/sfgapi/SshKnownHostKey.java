@@ -63,7 +63,7 @@ public class SshKnownHostKey extends AbstractSfgKey {
     super(keyName, keyString, keyStatusEnabled);
   }
 
-  private SshKnownHostKey(JSONObject json) throws JSONException {
+  private SshKnownHostKey(JSONObject json) throws JSONException, ApiException {
     super();
     this.readJSON(json);
   }
@@ -74,7 +74,7 @@ public class SshKnownHostKey extends AbstractSfgKey {
   }
 
   @Override
-  protected SshKnownHostKey readJSON(JSONObject json) throws JSONException {
+  protected SshKnownHostKey readJSON(JSONObject json) throws JSONException, ApiException {
     super.readJSON(json);
     return this;
   }
