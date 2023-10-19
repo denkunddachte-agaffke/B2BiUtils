@@ -114,7 +114,7 @@
     <operation name="Assign:config">
       <participant name="AssignService" />
       <output message="Xout">
-        <assign to="API_VERSION">0.2.5</assign>
+        <assign to="API_VERSION">0.2.6</assign>
         <assign to="DB_POOL">mssqlPool</assign>
         <assign to="HTTP_ERR_STATUS">500</assign>
         <assign to="OrigPrimaryDocument" from="/ProcessData/PrimaryDocument/@*"/>
@@ -192,7 +192,7 @@
           <participant name="AssignService" />
           <output message="Xout">
             <assign to="SQL">
-              SELECT TRIM(u.LOGINID) id, ui.EMAILID email, ui.FIRST_NAME givenName, ui.LAST_NAME surname, STRING_AGG(g.USERGROUP_NAME, ',') grouplist, u.ORGANIZATION_KEY identity 
+              SELECT TRIM(u.LOGINID) id, ui.EMAILID email, ui.FIRST_NAME givenName, ui.LAST_NAME surname, STRING_AGG(g.USERGROUP_NAME, ',') grouplist, u.ORGANIZATION_KEY [identity]
               FROM YFS_USER u 
               JOIN YFS_PERSON_INFO ui ON ui.PERSON_INFO_KEY =u.BILLINGADDRESS_KEY
               LEFT OUTER JOIN YFS_USER_GROUP_LIST gl ON gl.USER_KEY=u.USER_KEY

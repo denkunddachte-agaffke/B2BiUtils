@@ -21,6 +21,7 @@ import java.util.Base64;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import de.denkunddachte.exception.ApiException;
 import de.denkunddachte.ft.SshKey;
 
 public abstract class AbstractSfgKey extends ApiClient {
@@ -54,14 +55,14 @@ public abstract class AbstractSfgKey extends ApiClient {
   }
 
   @Override
-  protected AbstractSfgKey readJSON(JSONObject json) throws JSONException {
+  protected AbstractSfgKey readJSON(JSONObject json) throws JSONException, ApiException {
     super.init(json);
     this.keyName = json.optString("keyName");
     if (json.has("keyData")) {
       try {
         this.sshKey = new SshKey(new String(Base64.getDecoder().decode(json.getString("keyData"))));
       } catch (Exception ike) {
-        ike.printStackTrace();
+        throw new ApiException(ike);
       }
     }
     if (json.has("keyStatusEnabled"))
