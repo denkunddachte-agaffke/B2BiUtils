@@ -114,7 +114,7 @@
     <operation name="Assign:config">
       <participant name="AssignService" />
       <output message="Xout">
-        <assign to="API_VERSION">0.2.5</assign>
+        <assign to="API_VERSION">0.3.0</assign>
         <assign to="DB_POOL">mssqlPool</assign>
         <assign to="HTTP_ERR_STATUS">500</assign>
         <assign to="OrigPrimaryDocument" from="/ProcessData/PrimaryDocument/@*"/>
@@ -192,7 +192,7 @@
           <participant name="AssignService" />
           <output message="Xout">
             <assign to="SQL">
-              SELECT TRIM(u.LOGINID) id, ui.EMAILID email, ui.FIRST_NAME givenName, ui.LAST_NAME surname, STRING_AGG(g.USERGROUP_NAME, ',') grouplist, u.ORGANIZATION_KEY identity 
+              SELECT TRIM(u.LOGINID) id, ui.EMAILID email, ui.FIRST_NAME givenName, ui.LAST_NAME surname, STRING_AGG(g.USERGROUP_NAME, ',') grouplist, u.ORGANIZATION_KEY [identity] 
               FROM YFS_USER u 
               JOIN YFS_PERSON_INFO ui ON ui.PERSON_INFO_KEY =u.BILLINGADDRESS_KEY
               LEFT OUTER JOIN YFS_USER_GROUP_LIST gl ON gl.USER_KEY=u.USER_KEY
@@ -975,7 +975,32 @@
             <case ref="createJSON?" activity="createJSON!"/>
           </select>
           <sequence name="createJSON!">
-            <operation name="Request">
+            <!-- xmljsontransformer in B2Bi V6.2.0 does not work with DOMToDoc XML -->
+            <operation name="xmltojson">
+              <participant name="DD_JavaTaskService" />
+              <output message="Xout">
+                <assign to="." from="*" />
+                <assign to="srcLocationMode">inline</assign>
+                <assign to="javaSrc"><![CDATA[
+                  import java.io.InputStreamReader; import java.io.InputStream; import java.io.OutputStream;
+                  import com.sterlingcommerce.woodstock.workflow.Document;
+                  import org.json.JSONObject; import org.json.XML;
+                  JSONObject json =  XML.toJSONObject(new InputStreamReader(wfc.getPrimaryDocument().getBodyInputStream()));
+                  Document doc = wfc.newDocument();
+                  OutputStream os = doc.getOutputStream();
+                  os.write(json.toString().getBytes());
+                  os.flush();
+                  os.close();
+                  wfc.putPrimaryDocument(doc);
+                  return "JSON";
+                ]]>
+                </assign>
+              </output>
+              <input message="Xin">
+                <assign to="." from="*" />
+              </input>
+            </operation>
+            <!-- <operation name="XML2JSON">
               <participant name='xmljsontransformer'/>
               <output message='xout'>
                 <assign to='PrimaryDocument' from="/ProcessData/PrimaryDocument/@*"/>
@@ -986,7 +1011,7 @@
               <input message="xin">
                 <assign to='PrimaryDocument' from='PrimaryDocument/@*'/>
               </input>
-            </operation>
+            </operation> -->
           </sequence>
           <!-- END OF sequence "createJSON!" -->
         </choice>

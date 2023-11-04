@@ -14,13 +14,12 @@ import java.util.regex.Pattern;
 
 import javax.naming.NamingException;
 
-import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.b2biutil.AbstractConsoleApp;
 import de.denkunddachte.exception.ApiException;
 import de.denkunddachte.ft.SshKey;
 import de.denkunddachte.ldap.FtLDAP;
 import de.denkunddachte.ldap.LDAPUser;
-import de.denkunddachte.utils.CommandLineParser;
+import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.ParsedCommandLine;
 import de.denkunddachte.utils.Config;
@@ -80,11 +79,6 @@ public class LdapAdmin extends AbstractConsoleApp {
 
   public LdapAdmin(String[] args) throws CommandLineException, ApiException {
     super(args);
-  }
-
-  @Override
-  protected CommandLineParser getCommandLineConfig() {
-    return OPTIONS;
   }
 
   @Override

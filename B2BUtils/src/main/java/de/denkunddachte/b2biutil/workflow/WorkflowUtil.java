@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 
 import org.xmlunit.diff.Difference;
 
-import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.b2biutil.AbstractConsoleApp;
 import de.denkunddachte.b2biutil.Common;
 import de.denkunddachte.b2biutil.workflow.ResourceSync.Result;
@@ -37,7 +36,6 @@ import de.denkunddachte.sfgapi.WorkflowDefinition;
 import de.denkunddachte.sfgapi.WorkflowDefinition.VERSIONS;
 import de.denkunddachte.sfgapi.XSLTDefinition;
 import de.denkunddachte.siresource.SIArtifact;
-import de.denkunddachte.utils.CommandLineParser;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.ParsedCommandLine;
 import de.denkunddachte.utils.Config;
@@ -125,11 +123,6 @@ public class WorkflowUtil extends AbstractConsoleApp {
 
   public WorkflowUtil(String[] args) throws CommandLineException, ApiException {
     super(args);
-  }
-
-  @Override
-  protected CommandLineParser getCommandLineConfig() {
-    return OPTIONS;
   }
 
   @Override
@@ -290,6 +283,9 @@ public class WorkflowUtil extends AbstractConsoleApp {
         if (cfg.hasProperty(Props.PROP_SYNC)) {
           wfu.sync(exportFile, cfg.getString(Props.PROP_SYNC));
         }
+      } else if (cfg.hasProperty(Props.PROP_IMPORT)) {
+        File importFile = new File(cfg.getString(Props.PROP_IMPORT));
+        wfu.importResource(importFile);
       }
 
       // execute can be combined with any other command
@@ -902,7 +898,25 @@ public class WorkflowUtil extends AbstractConsoleApp {
     }
   }
 
-  private void export(File exportFile) throws ApiException {
+
+  private void importResource(File resourceFile) throws ApiException {
+    Resources res = new Resources();
+    res.setDataFile(resourceFile);
+    res.setIncludePattern(cfg.getString(Props.PROP_INCLUDE));
+    res.setExcludePattern(cfg.getString(Props.PROP_EXCLUDE));
+    if (res.importResources()) {
+      System.out.println("Imported " + resourceFile);
+      System.out.println("Result:");
+      System.out.println(res.getImportResult());
+    } else {
+      System.err.println("Import of " + resourceFile +  " failed!");
+      if (res.getImportResult() != null) { 
+        System.err.println("Result:");
+        System.err.println(res.getImportResult());
+      }
+    }
+  }
+private void export(File exportFile) throws ApiException {
     Resources res = new Resources();
     res.setIncludePattern(cfg.getString(Props.PROP_INCLUDE));
     res.setExcludePattern(cfg.getString(Props.PROP_EXCLUDE));
