@@ -46,5 +46,10 @@ public final class Props {
   public static final String PROP_IGNORE_PATHS                     = "resources.ignoreFilesPattern";
   public static final String PROP_TRACE_WFD                        = "traceWfd";
   public static final String PROP_PARSE_WFD                        = "parseWfd";
+  public static final String PROP_LIST                             = "list";
+  public static final String PROP_VALIDATE                         = "validate";
+  public static final String PROP_MANIFEST                         = "manifest";
+  public static final String PROP_PACKAGELIST                      = "pkglist";
+  public static final String PROP_CREATE                           = "create";
 
 }

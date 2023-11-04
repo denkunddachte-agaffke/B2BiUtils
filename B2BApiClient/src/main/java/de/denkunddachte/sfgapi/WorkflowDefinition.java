@@ -168,7 +168,7 @@ public class WorkflowDefinition extends ApiClient {
   private String                    identifier;
   private OffsetDateTime            timestamp;
   private String                    modifiedBy;
-  
+
   // local
   private List<Integer>             wfdVersions;
   private Integer                   maxVersion;
@@ -267,20 +267,23 @@ public class WorkflowDefinition extends ApiClient {
       json.put(ENABLE_TRANSACTION, enableTransaction);
       json.put(COMMIT_STEPS_UPON_ERROR, commitStepsUponError);
     }
-    json.put(DEADLINE_HOURS, deadlineHours);
-    json.put(DEADLINE_MINUTES, deadlineMinutes);
-    json.put(FIRST_NOTIFICATION_HOURS, firstNotificationHours);
-    json.put(FIRST_NOTIFICATION_MINUTES, firstNotificationMinutes);
-    json.put(SECOND_NOTIFICATION_HOURS, secondNotificationHours);
-    json.put(SECOND_NOTIFICATION_MINUTES, secondNotificationMinutes);
-
+    if (setCustomDeadline) {
+      json.put(DEADLINE_HOURS, deadlineHours);
+      json.put(DEADLINE_MINUTES, deadlineMinutes);
+      json.put(FIRST_NOTIFICATION_HOURS, firstNotificationHours);
+      json.put(FIRST_NOTIFICATION_MINUTES, firstNotificationMinutes);
+      json.put(SECOND_NOTIFICATION_HOURS, secondNotificationHours);
+      json.put(SECOND_NOTIFICATION_MINUTES, secondNotificationMinutes);
+    }
     json.put(DOCUMENT_STORAGE, documentStorage.getCode());
     json.put(DOCUMENT_TRACKING, documentTracking);
 
     json.put(EVENT_REPORTING_LEVEL, eventReportingLevel.getCode());
 
-    json.put(LIFESPAN_DAYS, lifespanDays);
-    json.put(LIFESPAN_HOURS, lifespanHours);
+    if (setCustomLifespan) {
+      json.put(LIFESPAN_DAYS, lifespanDays);
+      json.put(LIFESPAN_HOURS, lifespanHours);
+    }
     json.put(REMOVAL_METHOD, removalMethod.getCode());
 
     json.put(NODE_PREFERENCE, nodePreference.getCode());
@@ -336,6 +339,11 @@ public class WorkflowDefinition extends ApiClient {
     if (json.has(TIMESTAMP)) {
       this.timestamp = toOffsetDateTime(json.getString(TIMESTAMP));
     }
+    if (json.has(LIFESPAN_DAYS))
+      this.lifespanDays = json.getLong(LIFESPAN_DAYS);
+    if (json.has(LIFESPAN_HOURS))
+      this.lifespanHours = json.getLong(LIFESPAN_HOURS);
+
     this.modifiedBy = json.optString(MODIFIED_BY);
     if (json.has(NODE_PREFERENCE))
       this.nodePreference = NodePreference.getByCode(json.getJSONObject(NODE_PREFERENCE).getInt(CODE));
@@ -363,6 +371,9 @@ public class WorkflowDefinition extends ApiClient {
       this.wfdVersion = Integer.parseInt(id.substring(id.indexOf('/') + 1));
     }
     setRefreshRequired(isNullOrEmpty(this.businessProcess));
+    setCustomDeadline = (deadlineHours + deadlineMinutes + firstNotificationHours + firstNotificationMinutes + secondNotificationHours
+        + secondNotificationMinutes) > 0;
+    setCustomLifespan = (lifespanDays + lifespanHours) > 0;
     return this;
   }
 
@@ -648,7 +659,7 @@ public class WorkflowDefinition extends ApiClient {
     }
     this.name = getProcessName();
   }
-  
+
   public String getVersionInfo() throws ApiException {
     if (this.businessProcess == null) {
       throw new ApiException("Business process source is null!");
@@ -1007,7 +1018,7 @@ public class WorkflowDefinition extends ApiClient {
     }
     return result;
   }
-  
+
   @Override
   public void refresh() throws ApiException {
     super.refresh();
@@ -1195,7 +1206,7 @@ public class WorkflowDefinition extends ApiClient {
     }
     ExternalProcess ep = new ExternalProcess(cmd);
     LOGGER.log(Level.INFO, "Execute {0}...", cmd);
-    int rc;
+    int    rc;
     String launcherOutput = "";
     try {
       rc = ep.execute();

@@ -30,6 +30,8 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
+import de.denkunddachte.exception.ApiException;
+
 public class SIArtifact {
   public static final String B64_PREFIX = "SIB64ENCODE";
 
@@ -40,21 +42,22 @@ public class SIArtifact {
   private TYPE           type;
   private String         name;
   private byte[]         data;
-  private String         encoding = Charset.defaultCharset().name();
-  private int            version  = -1;
+  private String         encoding       = Charset.defaultCharset().name();
+  private int            version        = -1;
   private String         comment;
   private String         description;
-  private String         modifiedBy;
-  private OffsetDateTime modifyTime;
-  private boolean        enabled;
-  private boolean        defaultVersion;
+  private String         modifiedBy     = System.getProperty("user.name");
+  private OffsetDateTime modifyTime     = OffsetDateTime.now();
+  private boolean        enabled        = true;
+  private boolean        defaultVersion = true;
+  private String         sha256Hash;
 
   public SIArtifact(TYPE type, String name) {
     this.type = type;
     this.name = name;
   }
 
-  public void setData(String payload) throws UnsupportedEncodingException {
+  public void setData(String payload) throws UnsupportedEncodingException, ApiException {
     payload = payload.trim();
     if (payload.startsWith(B64_PREFIX)) {
       payload = new String(Base64.getDecoder().decode(payload.substring(B64_PREFIX.length())));
@@ -69,15 +72,17 @@ public class SIArtifact {
         e.printStackTrace();
       }
     }
-    this.data = payload.getBytes(encoding);
+    setData(payload.getBytes(encoding));
   }
 
-  public void setData(File file) throws IOException {
-    this.data = Files.readAllBytes(file.toPath());
+  public void setData(File file) throws IOException, ApiException {
+    setData(Files.readAllBytes(file.toPath()));
+    setDescription(file.toString());
   }
 
-  public void setData(byte[] data) {
+  public void setData(byte[] data) throws ApiException {
     this.data = data;
+    this.sha256Hash = XMLNormalizer.instance().createHash(data);
   }
 
   public String getEncodedData(boolean omitPrefix) {
@@ -98,6 +103,10 @@ public class SIArtifact {
 
   public String getEncoding() {
     return this.encoding;
+  }
+
+  public String getSha256Hash() {
+    return sha256Hash;
   }
 
   public TYPE getType() {

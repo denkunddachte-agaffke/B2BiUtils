@@ -169,7 +169,9 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     return cmdLine;
   }
 
-  abstract protected CommandLineParser getCommandLineConfig();
+  protected CommandLineParser getCommandLineConfig() {
+    return OPTIONS;
+  }
 
   abstract protected void init(ParsedCommandLine cmdline) throws CommandLineException, ApiException;
 
