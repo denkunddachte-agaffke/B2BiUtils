@@ -20,7 +20,6 @@ import de.denkunddachte.sfgapi.PropertyFiles;
 import de.denkunddachte.sfgapi.PropertyNodeValue;
 import de.denkunddachte.sfgapi.Workflow;
 import de.denkunddachte.sfgapi.WorkflowDefinition;
-import de.denkunddachte.utils.CommandLineParser;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.ParsedCommandLine;
 import de.denkunddachte.utils.Config;
@@ -76,11 +75,6 @@ public class PropertiesManager extends AbstractConsoleApp {
 
   public PropertiesManager(String[] args) throws CommandLineException, ApiException {
     super(args);
-  }
-
-  @Override
-  protected CommandLineParser getCommandLineConfig() {
-    return OPTIONS;
   }
 
   @SuppressWarnings("unchecked")

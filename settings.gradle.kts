@@ -16,5 +16,5 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.4.0"
 }
 
-rootProject.name = "b2butils"
+rootProject.name = "B2BiUtils"
 include("B2BUtils", "B2BApiClient", "ddutils", "JavaTaskHelper")

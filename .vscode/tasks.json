@@ -89,6 +89,34 @@
         "panel": "dedicated"
       }
     },
+    {
+      "label": "Import SI resource file",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["--import", "${file}"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Export SI resources",
+      "type": "shell",
+      "command": "b2bWorkflowMgr.sh",
+      "windows": {
+        "command": "b2bWorkflowMgr.cmd"
+      },
+      "args": ["--export", "${fileDirname}/${fileBasenameNoExtension}.export.xml", "--force"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
     // launch test tasks with CTRL+SHIFT+t (if keybindings.json is installed)
     {
       "label": "Deploy & execute WFD",

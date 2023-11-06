@@ -20,3 +20,7 @@
 
 * GET: `securityProtocol` not returned
 
+### workflows
+ * GET: svc/workflows/BP does not always get default version (e.g. when default was set to a previous version in dashboard 
+  (svc/workflows/?_range=0-999&fieldList=&searchFor=BP will get default but will return all BP% WFDs)
+    
