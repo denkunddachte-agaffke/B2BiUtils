@@ -17,7 +17,6 @@ package de.denkunddachte.sfgapi;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -28,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -37,7 +35,6 @@ import org.json.JSONObject;
 import de.denkunddachte.exception.ApiException;
 
 public class SshUserIdentityKey extends AbstractSfgKey {
-	private final static Logger		LOGGER		= Logger.getLogger(SshUserIdentityKey.class.getName());
 	protected static final String	SVC_NAME	= "sshuseridentitykeys";
 
 	private String					passPhrase;
@@ -56,7 +53,7 @@ public class SshUserIdentityKey extends AbstractSfgKey {
 	}
 
 	public SshUserIdentityKey(String keyName, File sshPrivateKeyFile, String passPhrase, boolean keyStatusEnabled)
-			throws FileNotFoundException, IOException, InvalidKeyException {
+			throws IOException, InvalidKeyException {
 		super(keyName, null, keyStatusEnabled);
 		try (InputStream is = new FileInputStream(sshPrivateKeyFile)) {
 			byte[] data = new byte[(int) sshPrivateKeyFile.length()];
@@ -66,7 +63,7 @@ public class SshUserIdentityKey extends AbstractSfgKey {
 		this.passPhrase = passPhrase;
 	}
 
-	private SshUserIdentityKey(JSONObject json) throws JSONException {
+	private SshUserIdentityKey(JSONObject json) throws JSONException, ApiException {
 		super();
 		this.readJSON(json);
 	}
@@ -88,15 +85,14 @@ public class SshUserIdentityKey extends AbstractSfgKey {
 	}
 
 	@Override
-	protected SshUserIdentityKey readJSON(JSONObject json) throws JSONException {
+	protected SshUserIdentityKey readJSON(JSONObject json) throws JSONException, ApiException {
 		super.readJSON(json);
 		this.passPhrase = json.optString("passPhrase");
 		this.privateKeyData = json.getString("privateKeyData");
 		try {
 			setSshKey(new String(Base64.getDecoder().decode(json.getString("publicKeyData"))));
 		} catch (InvalidKeyException ike) {
-			LOGGER.log(Level.WARNING, "Could not decode identity key {0}: {1}", new Object[] {this.getKeyName(), ike.getMessage()});
-      LOGGER.log(Level.FINE, "Key data for {0}: {1}", new Object[] {this.getKeyName(), json.getString("publicKeyData")});
+      throw new ApiException("Could not decode identity key " + this.getKeyName() + ": " + ike.getMessage(), ike);
 		}
 		return this;
 	}
@@ -154,12 +150,9 @@ public class SshUserIdentityKey extends AbstractSfgKey {
 		SshUserIdentityKey result = null;
 		JSONObject json = findByKey(SVC_NAME, keyName);
 		try {
-			if (json.has("errorCode")) {
-				LOGGER.finer("SshUserIdentityKey " + keyName + " not found: errorCode=" + json.getInt("errorCode")
-						+ ", errorDescription=" + json.get("errorDescription") + ".");
-			} else {
+			if (!json.has("errorCode")) {
+
 				result = new SshUserIdentityKey(json);
-				LOGGER.finer("Found SshUserIdentityKey " + keyName + ": " + result);
 			}
 		} catch (JSONException e) {
 			throw new ApiException(e);
