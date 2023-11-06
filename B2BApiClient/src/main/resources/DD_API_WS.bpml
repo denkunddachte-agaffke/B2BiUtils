@@ -982,10 +982,10 @@
                 <assign to="." from="*" />
                 <assign to="srcLocationMode">inline</assign>
                 <assign to="javaSrc"><![CDATA[
-                  import java.io.InputStreamReader; import java.io.InputStream; import java.io.OutputStream;
+                  import java.io.InputStream; import java.io.OutputStream;
                   import com.sterlingcommerce.woodstock.workflow.Document;
                   import org.json.JSONObject; import org.json.XML;
-                  JSONObject json =  XML.toJSONObject(new InputStreamReader(wfc.getPrimaryDocument().getBodyInputStream()));
+                  JSONObject json =  XML.toJSONObject(new String(wfc.getPrimaryDocument().getBody()));
                   Document doc = wfc.newDocument();
                   OutputStream os = doc.getOutputStream();
                   os.write(json.toString().getBytes());
