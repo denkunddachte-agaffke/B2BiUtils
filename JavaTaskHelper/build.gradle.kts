@@ -23,7 +23,8 @@ dependencies {
 
     //implementation(files('b2bilibs/install_foundation.jar'))
   
-    implementation("org.json:json:20230618")
+    // SI 6.1.2 comes with json-20170516.jar (as part of restAPIClient/1_1)
+    implementation("org.json:json:20170516")
     //implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     //implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.15.2")
 
