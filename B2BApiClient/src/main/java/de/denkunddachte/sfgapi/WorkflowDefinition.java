@@ -154,8 +154,8 @@ public class WorkflowDefinition extends ApiClient {
   private Integer                   secondNotificationMinutes;
 
   private boolean                   setCustomLifespan;
-  private Long                      lifespanDays;
-  private Long                      lifespanHours;
+  private Integer                   lifespanDays;
+  private Integer                   lifespanHours;
   private RemovalMethod             removalMethod;
 
   private boolean                   enableBusinessProcess;
@@ -340,9 +340,9 @@ public class WorkflowDefinition extends ApiClient {
       this.timestamp = toOffsetDateTime(json.getString(TIMESTAMP));
     }
     if (json.has(LIFESPAN_DAYS))
-      this.lifespanDays = json.getLong(LIFESPAN_DAYS);
+      this.lifespanDays = json.getInt(LIFESPAN_DAYS);
     if (json.has(LIFESPAN_HOURS))
-      this.lifespanHours = json.getLong(LIFESPAN_HOURS);
+      this.lifespanHours = json.getInt(LIFESPAN_HOURS);
 
     this.modifiedBy = json.optString(MODIFIED_BY);
     if (json.has(NODE_PREFERENCE))
@@ -371,10 +371,18 @@ public class WorkflowDefinition extends ApiClient {
       this.wfdVersion = Integer.parseInt(id.substring(id.indexOf('/') + 1));
     }
     setRefreshRequired(isNullOrEmpty(this.businessProcess));
-    setCustomDeadline = (deadlineHours + deadlineMinutes + firstNotificationHours + firstNotificationMinutes + secondNotificationHours
-        + secondNotificationMinutes) > 0;
-    setCustomLifespan = (lifespanDays + lifespanHours) > 0;
+    setCustomDeadline = hasAny(deadlineHours, deadlineMinutes, firstNotificationHours, firstNotificationMinutes, secondNotificationHours,
+        secondNotificationMinutes);
+    setCustomLifespan = hasAny(lifespanDays, lifespanHours);
     return this;
+  }
+
+  private boolean hasAny(Integer... values) {
+    for (Integer v : values) {
+      if (v != null && v > 0)
+        return true;
+    }
+    return false;
   }
 
   // Getters and setters
@@ -562,19 +570,19 @@ public class WorkflowDefinition extends ApiClient {
     return setCustomLifespan;
   }
 
-  public Long getLifespanDays() {
+  public Integer getLifespanDays() {
     return lifespanDays;
   }
 
-  public void setLifespanDays(Long lifespanDays) {
+  public void setLifespanDays(Integer lifespanDays) {
     this.lifespanDays = lifespanDays;
   }
 
-  public Long getLifespanHours() {
+  public Integer getLifespanHours() {
     return lifespanHours;
   }
 
-  public void setLifespanHours(Long lifespanHours) {
+  public void setLifespanHours(Integer lifespanHours) {
     this.lifespanHours = lifespanHours;
   }
 
