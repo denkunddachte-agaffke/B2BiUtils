@@ -3,12 +3,12 @@ plugins {
 }
 
 scmVersion {
-    localOnly = false
+    localOnly()
     tag {
         prefix.set("v")
         branchPrefix.set(mapOf("(?i)(az|allianz|master|HCE).*" to "az"))
     }
-    versionCreator({versionFromTag,scmPosition -> "${versionFromTag}-az"})
+    versionCreator { versionFromTag, scmPosition -> versionFromTag + if (scmPosition.branch.matches("(?i)(az|allianz|master|HCE).*".toRegex())) "-az" else "" }
 
 }
 project.version  = scmVersion.version
