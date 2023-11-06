@@ -55,6 +55,8 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
+import org.json.JSONObject;
+import org.json.XML;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -222,6 +224,20 @@ public final class JavaTask {
     return "OK";
   }
 
+  public static String testXML2JSON(String... args) throws Exception {
+    //import java.io.InputStream; import java.io.OutputStream;
+    //import com.sterlingcommerce.woodstock.workflow.Document;
+    //import org.json.JSONObject; import org.json.XML;
+    JSONObject json =  XML.toJSONObject(new String(wfc.getPrimaryDocument().getBody()));
+    Document doc = wfc.newDocument();
+    OutputStream os = doc.getOutputStream();
+    os.write(json.toString().getBytes());
+    os.flush();
+    os.close();
+    wfc.putPrimaryDocument(doc);
+    return "JSON";
+  }
+  
   /**
    * Internal:
    */
