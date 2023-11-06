@@ -168,7 +168,7 @@ public class WorkflowDefinition extends ApiClient {
   private String                    identifier;
   private OffsetDateTime            timestamp;
   private String                    modifiedBy;
-  
+
   // local
   private List<Integer>             wfdVersions;
   private Integer                   maxVersion;
@@ -267,20 +267,23 @@ public class WorkflowDefinition extends ApiClient {
       json.put(ENABLE_TRANSACTION, enableTransaction);
       json.put(COMMIT_STEPS_UPON_ERROR, commitStepsUponError);
     }
-    json.put(DEADLINE_HOURS, deadlineHours);
-    json.put(DEADLINE_MINUTES, deadlineMinutes);
-    json.put(FIRST_NOTIFICATION_HOURS, firstNotificationHours);
-    json.put(FIRST_NOTIFICATION_MINUTES, firstNotificationMinutes);
-    json.put(SECOND_NOTIFICATION_HOURS, secondNotificationHours);
-    json.put(SECOND_NOTIFICATION_MINUTES, secondNotificationMinutes);
-
+    if (setCustomDeadline) {
+      json.put(DEADLINE_HOURS, deadlineHours);
+      json.put(DEADLINE_MINUTES, deadlineMinutes);
+      json.put(FIRST_NOTIFICATION_HOURS, firstNotificationHours);
+      json.put(FIRST_NOTIFICATION_MINUTES, firstNotificationMinutes);
+      json.put(SECOND_NOTIFICATION_HOURS, secondNotificationHours);
+      json.put(SECOND_NOTIFICATION_MINUTES, secondNotificationMinutes);
+    }
     json.put(DOCUMENT_STORAGE, documentStorage.getCode());
     json.put(DOCUMENT_TRACKING, documentTracking);
 
     json.put(EVENT_REPORTING_LEVEL, eventReportingLevel.getCode());
 
-    json.put(LIFESPAN_DAYS, lifespanDays);
-    json.put(LIFESPAN_HOURS, lifespanHours);
+    if (setCustomLifespan) {
+      json.put(LIFESPAN_DAYS, lifespanDays);
+      json.put(LIFESPAN_HOURS, lifespanHours);
+    }
     json.put(REMOVAL_METHOD, removalMethod.getCode());
 
     json.put(NODE_PREFERENCE, nodePreference.getCode());
@@ -336,6 +339,11 @@ public class WorkflowDefinition extends ApiClient {
     if (json.has(TIMESTAMP)) {
       this.timestamp = toOffsetDateTime(json.getString(TIMESTAMP));
     }
+    if (json.has(LIFESPAN_DAYS))
+      this.lifespanDays = json.getLong(LIFESPAN_DAYS);
+    if (json.has(LIFESPAN_HOURS))
+      this.lifespanHours = json.getLong(LIFESPAN_HOURS);
+
     this.modifiedBy = json.optString(MODIFIED_BY);
     if (json.has(NODE_PREFERENCE))
       this.nodePreference = NodePreference.getByCode(json.getJSONObject(NODE_PREFERENCE).getInt(CODE));
@@ -363,6 +371,9 @@ public class WorkflowDefinition extends ApiClient {
       this.wfdVersion = Integer.parseInt(id.substring(id.indexOf('/') + 1));
     }
     setRefreshRequired(isNullOrEmpty(this.businessProcess));
+    setCustomDeadline = (deadlineHours + deadlineMinutes + firstNotificationHours + firstNotificationMinutes + secondNotificationHours
+        + secondNotificationMinutes) > 0;
+    setCustomLifespan = (lifespanDays + lifespanHours) > 0;
     return this;
   }
 
@@ -648,7 +659,7 @@ public class WorkflowDefinition extends ApiClient {
     }
     this.name = getProcessName();
   }
-  
+
   public String getVersionInfo() throws ApiException {
     if (this.businessProcess == null) {
       throw new ApiException("Business process source is null!");
@@ -910,15 +921,31 @@ public class WorkflowDefinition extends ApiClient {
     return result;
   }
 
-  // BUG: REST API does not reliably return the default version when doing lookup by id. Setting version to something that does
-  // not exist (e.g. 0) seems to return default version
+  // BUG: REST API does not reliably return the default version when doing lookup by id. Get with searchFor...
   public static WorkflowDefinition find(String name) throws ApiException {
-    return find(name, 0);
+    try {
+      Map<String, Object> params = new HashMap<>();
+      params.put("offset", 0);
+      params.put("fieldList", "full");
+      params.put("searchFor", name);
+      JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
+      for (int i = 0; i < jsonObjects.length(); i++) {
+        if (jsonObjects.getJSONObject(i).getString("name").equals(name)) {
+          return new WorkflowDefinition(jsonObjects.getJSONObject(i));
+        }
+      }
+    } catch (JSONException | UnsupportedEncodingException e) {
+      throw new ApiException(e);
+    }
+    return null;
   }
 
   public static WorkflowDefinition find(String name, int version) throws ApiException {
+    if (version == 0) {
+      return find(name);
+    }
     WorkflowDefinition result = null;
-    String             key    = (version == 0 ? name : name + "/" + version);
+    String             key    = name + "/" + version;
     JSONObject         json   = findByKey(SVC_NAME, key);
     try {
       if (json.has(ERROR_CODE)) {
@@ -991,7 +1018,7 @@ public class WorkflowDefinition extends ApiClient {
     }
     return result;
   }
-  
+
   @Override
   public void refresh() throws ApiException {
     super.refresh();
@@ -1089,6 +1116,7 @@ public class WorkflowDefinition extends ApiClient {
     return result;
   }
 
+  // Execute BP:
   public Workflow execute() throws ApiException {
     return execute((byte[]) null, (String) null);
   }
@@ -1178,7 +1206,7 @@ public class WorkflowDefinition extends ApiClient {
     }
     ExternalProcess ep = new ExternalProcess(cmd);
     LOGGER.log(Level.INFO, "Execute {0}...", cmd);
-    int rc;
+    int    rc;
     String launcherOutput = "";
     try {
       rc = ep.execute();

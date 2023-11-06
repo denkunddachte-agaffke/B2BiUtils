@@ -15,6 +15,7 @@
 */
 package de.denkunddachte.sfgapi;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -25,9 +26,11 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.entity.FileEntity;
 import org.apache.http.entity.StringEntity;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -55,6 +58,8 @@ public class Resources extends ApiClient {
   private Set<TYPE> resourceTypes = new HashSet<>();
   private boolean   allVersions;
   private int       artifactCount;
+  private File      dataFile;
+  private String importResult;
 
   public Resources() {
     resourceTypes.add(TYPE.WFD);
@@ -101,6 +106,15 @@ public class Resources extends ApiClient {
 
   public void setData(String data) {
     this.data = data;
+  }
+
+  public File getDataFile() {
+    return dataFile;
+  }
+
+  public void setDataFile(File resourceFile) {
+    this.dataFile = resourceFile;
+    this.filename = resourceFile.getName();
   }
 
   public String getIncludePattern() {
@@ -156,6 +170,10 @@ public class Resources extends ApiClient {
     return artifactCount;
   }
 
+  public String getImportResult() {
+    return importResult;
+  }
+
   /**
    * Create JSON for CREATE, UPDATE
    */
@@ -171,22 +189,22 @@ public class Resources extends ApiClient {
 
   @Override
   public boolean delete() throws ApiException {
-    throw new NotImplementedException("Deletion of XSLTs is not supported with WS API!");
+    throw new NotImplementedException("Deletion of resources is not supported with WS API!");
   }
 
   @Override
   public boolean update() throws ApiException {
-    throw new NotImplementedException("Deletion of XSLTs is not supported with WS API!");
+    throw new NotImplementedException("Update of resources is not supported with WS API!");
   }
 
   @Override
   public boolean create() throws ApiException {
-    throw new NotImplementedException("Deletion of XSLTs is not supported with WS API!");
+    throw new NotImplementedException("Creation of resources is not supported with WS API!");
   }
 
   @Override
   public String toString() {
-    return "XSLTDefinition [name" + filename + "]";
+    return "Resources [name" + filename + "]";
   }
 
   private void appendCommonParams(StringBuilder sb) throws UnsupportedEncodingException {
@@ -214,25 +232,34 @@ public class Resources extends ApiClient {
     if (!useWsApi(IMPORT_SVC_NAME)) {
       throw new NotImplementedException("API \"" + IMPORT_SVC_NAME + "\" not enabled!");
     }
-    JSONObject json = null;
+    HttpEntity entity = null;
+    JSONObject json   = null;
     try {
+      if (dataFile != null) {
+        entity = new FileEntity(dataFile);
+      } else if (data != null) {
+        entity = new StringEntity(data);
+      } else {
+        throw new IllegalStateException("Data is empty!");
+      }
       StringBuilder params = new StringBuilder(getWsApiBaseURI());
       params.append("?api=").append(IMPORT_SVC_NAME).append("&json=1");
       appendCommonParams(params);
       HttpRequestBase httpRequest = createRequest(RequestType.POST, new URI(params.toString()), null);
 
-      ((HttpPost) httpRequest).setEntity(new StringEntity(data));
+      ((HttpPost) httpRequest).setEntity(entity);
       try (CloseableHttpResponse response = executeRequest(httpRequest)) {
         if (response.getStatusLine().getStatusCode() != 200) {
           throw new ApiException("POST request " + params + " failed with RC=" + response.getStatusLine());
         }
         json = new JSONObject(getJSONResponse(response));
-        LOGGER.log(Level.FINE, "Import resources returns:\n{0}", json.getString("ImportResult").replace('~', '\n'));
+        this.importResult = json.getString("ImportResult").replace('~', '\n');
+        LOGGER.log(Level.FINE, "Import resources returns:\n{0}", importResult);
       }
     } catch (URISyntaxException | IOException e) {
       throw new ApiException(e);
     }
-    return json.getString("ImportResult").contains("Successfully imported");
+    return importResult.contains("Successfully imported");
   }
 
   public boolean export() throws ApiException {

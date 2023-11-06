@@ -35,16 +35,36 @@ public class FileFind {
     // static
   }
 
-  public static Collection<Path> find(String rootDir, String fileNamePattern) throws IOException {
-    return find(rootDir, fileNamePattern, false, null);
+  public static Path getPath(String rootDir, String fileNamePattern) throws IOException {
+    return getPath(rootDir, fileNamePattern, false);
   }
 
-  public static Collection<Path> find(String rootDir, String fileNamePattern, boolean ignoreCase) throws IOException {
-    return find(rootDir, fileNamePattern, ignoreCase, null);
+  public static Path getPath(String rootDir, String fileNamePattern, boolean ignoreCase) throws IOException {
+    Collection<Path> paths = find(rootDir, fileNamePattern, ignoreCase);
+    if (paths.isEmpty()) {
+      return null;
+    } else {
+      return paths.iterator().next();
+    }
   }
 
-  public static Collection<Path> find(String rootDir, String fileNamePattern, boolean ignoreCase, Pattern ignorePattern) throws IOException {
-    FilenameFilterVisitor list = new FilenameFilterVisitor(fileNamePattern, ignoreCase);
+  public static Collection<Path> find(String rootDir, String globPattern) throws IOException {
+    return find(rootDir, globPattern, false, null);
+  }
+
+  public static Collection<Path> find(String rootDir, String globPattern, boolean ignoreCase) throws IOException {
+    return find(rootDir, globPattern, ignoreCase, null);
+  }
+
+  public static Collection<Path> find(String rootDir, String globPattern, boolean ignoreCase, Pattern ignorePattern) throws IOException {
+    FilenameFilterVisitor list = new FilenameFilterVisitor(globPattern, ignoreCase);
+    list.setIgnorePattern(ignorePattern);
+    Files.walkFileTree(Paths.get(rootDir), list);
+    return list.getResult();
+  }
+
+  public static Collection<Path> find(String rootDir, String regexPattern, Pattern ignorePattern) throws IOException {
+    FilenameFilterVisitor list = new FilenameFilterVisitor(regexPattern);
     list.setIgnorePattern(ignorePattern);
     Files.walkFileTree(Paths.get(rootDir), list);
     return list.getResult();
@@ -60,6 +80,12 @@ public class FileFind {
       if (glob != null) {
         this.matcher = FileSystems.getDefault().getPathMatcher("glob:" + (ignoreCase ? glob.toLowerCase() : glob));
         this.ignoreCase = ignoreCase;
+      }
+    }
+
+    public FilenameFilterVisitor(String pattern) {
+      if (pattern != null) {
+        this.matcher = FileSystems.getDefault().getPathMatcher("regex:" + pattern);
       }
     }
 

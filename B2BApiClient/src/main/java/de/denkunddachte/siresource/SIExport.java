@@ -18,11 +18,13 @@ package de.denkunddachte.siresource;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -53,10 +55,12 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import de.denkunddachte.util.ApiConfig;
+import de.denkunddachte.enums.NodePreference;
 import de.denkunddachte.exception.ApiException;
 import de.denkunddachte.exception.NotImplementedException;
+import de.denkunddachte.sfgapi.WorkflowDefinition;
 import de.denkunddachte.siresource.SIArtifact.TYPE;
+import de.denkunddachte.util.ApiConfig;
 
 public class SIExport {
   private static final int      XSLT_TYPE            = 4;
@@ -64,10 +68,18 @@ public class SIExport {
   private static final int      XSLT_DEFAULT_VERSION = -1;
   private static final boolean  XSLT_DATA            = true;
 
+  private static final int      WFD_TYPE            = 1;
+  
   private final Set<SIArtifact> artifacts            = new LinkedHashSet<>();
+  private boolean               imported             = false;
 
   public SIExport() {
     super();
+  }
+
+  public SIExport(File inputFile) throws ApiException {
+    super();
+    parse(inputFile);
   }
 
   public Collection<SIArtifact> getArtifacts() {
@@ -163,6 +175,7 @@ public class SIExport {
         }
         artifacts.add(artifact);
       }
+      imported = true;
     } catch (UnsupportedEncodingException | XPathExpressionException e) {
       throw new ApiException("Failed to parse document!", e);
     }
@@ -197,6 +210,32 @@ public class SIExport {
     }
   }
 
+  public boolean isImported() {
+    return imported;
+  }
+
+  public void listPackage(OutputStream os, boolean defaultVersionsOnly) {
+    PrintWriter pw = new PrintWriter(os);
+    for (SIArtifact a : artifacts) {
+      if (defaultVersionsOnly && !a.isDefaultVersion())
+        continue;
+      pw.format("%s;%s;%s%n", a.getType().name(), a.getName(), a.getSha256Hash());
+    }
+    pw.flush();
+  }
+
+  public void writeManifest(OutputStream os, boolean defaultVersionsOnly) {
+    PrintWriter       pw  = new PrintWriter(os);
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    for (SIArtifact a : artifacts) {
+      if (defaultVersionsOnly && !a.isDefaultVersion())
+        continue;
+      pw.format("%s;%s;%s;%s;%s;%s;%s%n", a.getType().name(), a.getName(), a.getSha256Hash(), a.getVersion(), a.getModifyTime().format(fmt), a.getModifiedBy(),
+          a.getComment());
+    }
+    pw.flush();
+  }
+
   private Document createImportData() throws ApiException {
     Document doc = getDocBuilder().newDocument();
     try {
@@ -209,7 +248,9 @@ public class SIExport {
       if (!getArtifacts(TYPE.WFD).isEmpty()) {
         Node nl = doc.createElement("BPDEFS");
         root.appendChild(nl);
-        throw new NotImplementedException("Creating import structures for WFDs not implemented yet!");
+        for (SIArtifact artifact : getArtifacts(TYPE.WFD)) {
+          nl.appendChild(createWFDNode(artifact, doc));
+        }
       }
       if (!getArtifacts(TYPE.XSLT).isEmpty()) {
         Node nl = doc.createElement("XSLTS");
@@ -258,6 +299,78 @@ public class SIExport {
     return xslt;
   }
 
+  private Element createWFDNode(SIArtifact artifact, Document doc) throws ApiException {
+    Element bpdef = doc.createElement("BPDEF");
+    bpdef.appendChild(doc.createElement("LangResource")).appendChild(doc.createTextNode(artifact.getEncodedData(false)));
+    Element md   = doc.createElement("ConfigResource");
+    bpdef.appendChild(md);
+    String comment = artifact.getComment() == null ? "Created/updated via SIExport" : artifact.getComment();
+    md.appendChild(doc.createElement("ConfDescription")).appendChild(doc.createTextNode(comment));
+    md.appendChild(doc.createElement("ConfProcessName")).appendChild(doc.createTextNode(artifact.getName()));
+    md.appendChild(doc.createElement("ConfWFDID")).appendChild(doc.createTextNode("1"));
+    String version = String.valueOf(artifact.getVersion()> 0 ? artifact.getVersion():1);
+    md.appendChild(doc.createElement("ConfWFDVersion")).appendChild(doc.createTextNode(version));
+    md.appendChild(doc.createElement("OBJECT_VERSION")).appendChild(doc.createTextNode(version));
+    if (artifact.isDefaultVersion()) {
+      md.appendChild(doc.createElement("SIResourceDefaultVersion")).appendChild(doc.createTextNode("true"));
+    }
+    WorkflowDefinition wfd = WorkflowDefinition.find(artifact.getName());
+    if (wfd == null) {
+      md.appendChild(doc.createElement("ConfPersist")).appendChild(doc.createTextNode("-1"));
+      md.appendChild(doc.createElement("ConfLifeSpan")).appendChild(doc.createTextNode("-1"));
+      md.appendChild(doc.createElement("ConfRemoval")).appendChild(doc.createTextNode("-1"));
+      md.appendChild(doc.createElement("ConfOnfaultFlag")).appendChild(doc.createTextNode("true"));
+      md.appendChild(doc.createElement("ConfStatus")).appendChild(doc.createTextNode("1"));
+      md.appendChild(doc.createElement("ConfLastUsed")).appendChild(doc.createTextNode(ApiConfig.getInstance().getUser()));
+      md.appendChild(doc.createElement("ConfEncoding")).appendChild(doc.createTextNode("None"));
+      md.appendChild(doc.createElement("ConfType")).appendChild(doc.createTextNode(String.valueOf(WFD_TYPE)));
+    } else {
+      md.appendChild(doc.createElement("ConfPersist")).appendChild(doc.createTextNode(String.valueOf(wfd.getPersistenceLevel().getCode())));
+      long lifeSpanMinutes = -1; // default
+      if (wfd.isSetCustomLifespan()) {
+        lifeSpanMinutes = (wfd.getLifespanDays()*24 + wfd.getLifespanHours()) * 60;
+      }
+      md.appendChild(doc.createElement("ConfLifeSpan")).appendChild(doc.createTextNode(String.valueOf(lifeSpanMinutes)));
+      // Expedite setting is not included in REST API 
+      //md.appendChild(doc.createElement("ConfExpedite")).appendChild(doc.createTextNode("false"));
+      md.appendChild(doc.createElement("ConfRemoval")).appendChild(doc.createTextNode(String.valueOf(wfd.getRemovalMethod().getCode())));
+      md.appendChild(doc.createElement("ConfDocStorage")).appendChild(doc.createTextNode(String.valueOf(wfd.getDocumentStorage().getCode())));
+      md.appendChild(doc.createElement("ConfPriority")).appendChild(doc.createTextNode(String.valueOf(wfd.getQueue())));
+      md.appendChild(doc.createElement("ConfRecoveryLevel")).appendChild(doc.createTextNode(String.valueOf(wfd.getRecoveryLevel().getCode())));
+      md.appendChild(doc.createElement("ConfSoftstopRecoveryLevel")).appendChild(doc.createTextNode(String.valueOf(wfd.getSoftstopRecoveryLevel().getCode())));
+      md.appendChild(doc.createElement("ConfOnfaultFlag")).appendChild(doc.createTextNode(Boolean.toString(wfd.isOnfaultProcessing())));
+      md.appendChild(doc.createElement("ConfStatus")).appendChild(doc.createTextNode(wfd.isEnableBusinessProcess() ? "1" : "0"));
+      md.appendChild(doc.createElement("ConfLastUsed")).appendChild(doc.createTextNode(ApiConfig.getInstance().getUser()));
+      md.appendChild(doc.createElement("ConfEncoding")).appendChild(doc.createTextNode("None"));
+      md.appendChild(doc.createElement("ConfType")).appendChild(doc.createTextNode(String.valueOf(WFD_TYPE)));
+      md.appendChild(doc.createElement("ConfDocTracking")).appendChild(doc.createTextNode(Boolean.toString(wfd.isDocumentTracking())));
+      if (wfd.isSetCustomDeadline()) {
+        md.appendChild(doc.createElement("ConfDeadLineInterval")).appendChild(doc.createTextNode(String.valueOf(wfd.getDeadlineHours() * 60 + wfd.getDeadlineMinutes())));
+        md.appendChild(doc.createElement("ConfFirstNotifyInterval")).appendChild(doc.createTextNode(String.valueOf(wfd.getFirstNotificationHours() * 60 + wfd.getFirstNotificationMinutes())));
+        md.appendChild(doc.createElement("ConfSecondNotifyInterval")).appendChild(doc.createTextNode(String.valueOf(wfd.getSecondNotificationHours() * 60 + wfd.getSecondNotificationMinutes())));
+      } else {
+        md.appendChild(doc.createElement("ConfDeadLineInterval")).appendChild(doc.createTextNode("-1"));
+        md.appendChild(doc.createElement("ConfFirstNotifyInterval")).appendChild(doc.createTextNode("-1"));
+        md.appendChild(doc.createElement("ConfSecondNotifyInterval")).appendChild(doc.createTextNode("-1"));
+      }
+      md.appendChild(doc.createElement("ConfEventLevel")).appendChild(doc.createTextNode(String.valueOf(wfd.getEventReportingLevel().getCode())));
+      if(wfd.getCategory() != null && !wfd.getCategory().isEmpty()) {
+        md.appendChild(doc.createElement("ConfCategory")).appendChild(doc.createTextNode(wfd.getCategory()));
+      }
+      if (wfd.getNodePreference() == NodePreference.PREFERRED) {
+        md.appendChild(doc.createElement("ConfPreferredNode")).appendChild(doc.createTextNode(wfd.getNode()));
+      } else if (wfd.getNodePreference() == NodePreference.MANDATORY) {
+        md.appendChild(doc.createElement("ConfMandatoryNode")).appendChild(doc.createTextNode(wfd.getNode()));
+      }
+      // Execution roles not supported by REST API
+      //md.appendChild(doc.createElement("ConfRoleNode")).appendChild(doc.createTextNode(""));
+      md.appendChild(doc.createElement("ConfTransaction")).appendChild(doc.createTextNode(Boolean.toString(wfd.isEnableTransaction())));
+      // md.appendChild(doc.createElement("ConfAsyncMode")).appendChild(doc.createTextNode("true"));
+      md.appendChild(doc.createElement("ConfCommitOnError")).appendChild(doc.createTextNode(Boolean.toString(wfd.isCommitStepsUponError())));
+    }
+    return bpdef;
+  }
+
   public void createImport(OutputStream os) throws ApiException {
     TransformerFactory transformerFactory = TransformerFactory.newInstance();
     Transformer        transformer;
@@ -270,6 +383,13 @@ public class SIExport {
     } catch (TransformerException e) {
       throw new ApiException("Failed to build XML document!", e);
     }
+  }
+
+  
+  
+  @Override
+  public String toString() {
+    return "SIExport [artifacts=" + artifacts.size() + ", imported=" + imported + "]";
   }
 
   public static void main(String[] args) throws ApiException {

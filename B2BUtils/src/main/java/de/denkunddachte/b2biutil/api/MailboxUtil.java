@@ -17,7 +17,6 @@ import de.denkunddachte.sfgapi.Mailbox.CreateParent;
 import de.denkunddachte.sfgapi.MailboxItem;
 import de.denkunddachte.sfgapi.UserAccount;
 import de.denkunddachte.sfgapi.UserGroup;
-import de.denkunddachte.utils.CommandLineParser;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.ParsedCommandLine;
 import de.denkunddachte.utils.Config;
@@ -72,11 +71,6 @@ public class MailboxUtil extends AbstractConsoleApp {
 
   public MailboxUtil(String[] args) throws CommandLineException, ApiException {
     super(args);
-  }
-
-  @Override
-  protected CommandLineParser getCommandLineConfig() {
-    return OPTIONS;
   }
 
   @Override

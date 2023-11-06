@@ -15,7 +15,6 @@ import java.util.logging.Logger;
 
 import javax.naming.NamingException;
 
-import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.b2biutil.AbstractConsoleApp;
 import de.denkunddachte.b2biutil.api.SshKeyMap.KeyInfo;
 import de.denkunddachte.exception.ApiException;
@@ -24,7 +23,7 @@ import de.denkunddachte.ldap.FtLDAP;
 import de.denkunddachte.ldap.LDAPUser;
 import de.denkunddachte.sfgapi.SshAuthorizedUserKey;
 import de.denkunddachte.sfgapi.UserAccount;
-import de.denkunddachte.utils.CommandLineParser;
+import de.denkunddachte.util.ApiConfig;
 import de.denkunddachte.utils.CommandLineParser.CommandLineException;
 import de.denkunddachte.utils.CommandLineParser.ParsedCommandLine;
 import de.denkunddachte.utils.Config;
@@ -56,11 +55,6 @@ public class UserAccountUtil extends AbstractConsoleApp {
 
   public UserAccountUtil(String[] args) throws CommandLineException, ApiException {
     super(args);
-  }
-
-  @Override
-  protected CommandLineParser getCommandLineConfig() {
-    return OPTIONS;
   }
 
   @Override
