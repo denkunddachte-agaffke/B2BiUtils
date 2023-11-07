@@ -6,7 +6,7 @@ if "%dirname%" EQU "scripts" (
   set MYDIR=%MYDIR:~0,-1%\..
 )
 
-SET MAINCLASS=de.denkunddachte.b2biutil.workflow.WorkflowUtil
+SET MAINCLASS=de.denkunddachte.b2biutil.workflow.SIResourceUtil
 
 set JAVA=java.exe
 IF "%JRE_HOME%" NEQ "" (

@@ -4,7 +4,7 @@ if [ $(basename $MYDIR) == "scripts" ]; then
   MYDIR=$(dirname $MYDIR)
 fi
 
-MAINCLASS="de.denkunddachte.b2biutil.workflow.WorkflowUtil"
+MAINCLASS="de.denkunddachte.b2biutil.workflow.SIResourceUtil"
 
 if [ -n "$JRE_HOME" ]
 then
