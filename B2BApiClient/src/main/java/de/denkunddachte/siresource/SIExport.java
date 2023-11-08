@@ -269,9 +269,10 @@ public class SIExport {
     Element xslt = doc.createElement("XSLT");
     Element md   = doc.createElement("METADATA");
     xslt.appendChild(md);
+    int version = artifact.getVersion() > 0 ? artifact.getVersion() : 1;
     md.appendChild(doc.createElement("NAME")).appendChild(doc.createTextNode(artifact.getName()));
     md.appendChild(doc.createElement("TYPE")).appendChild(doc.createTextNode(String.valueOf(XSLT_TYPE)));
-    md.appendChild(doc.createElement("VERSION")).appendChild(doc.createTextNode(String.valueOf(artifact.getVersion())));
+    md.appendChild(doc.createElement("VERSION")).appendChild(doc.createTextNode(String.valueOf(version)));
     OffsetDateTime d = artifact.getModifyTime() == null ? OffsetDateTime.now() : artifact.getModifyTime();
     md.appendChild(doc.createElement("CREATE_DATE")).appendChild(doc.createTextNode(String.valueOf(d.toInstant().toEpochMilli())));
     String comment = artifact.getComment() == null ? "Created/updated via SIExport" : artifact.getComment();
@@ -283,11 +284,11 @@ public class SIExport {
     md.appendChild(doc.createElement("STATUS")).appendChild(doc.createTextNode(String.valueOf(artifact.isEnabled())));
     md.appendChild(doc.createElement("DOWNLOADABLE")).appendChild(doc.createTextNode(String.valueOf(XSLT_DOWNLOADABLE)));
     md.appendChild(doc.createElement("DEFAULT_VERSION")).appendChild(doc.createTextNode(String.valueOf(XSLT_DEFAULT_VERSION)));
-    md.appendChild(doc.createElement("OBJECT_VERSION")).appendChild(doc.createTextNode(String.valueOf(artifact.getVersion())));
+    md.appendChild(doc.createElement("OBJECT_VERSION")).appendChild(doc.createTextNode(String.valueOf(version)));
     if (artifact.isDefaultVersion()) {
       md.appendChild(doc.createElement("SIResourceDefaultVersion")).appendChild(doc.createTextNode("true"));
     }
-    md.appendChild(doc.createElement("LATEST_VERSION")).appendChild(doc.createTextNode(String.valueOf(artifact.getVersion())));
+    md.appendChild(doc.createElement("LATEST_VERSION")).appendChild(doc.createTextNode(String.valueOf(version)));
     md.appendChild(doc.createElement("DATA")).appendChild(doc.createTextNode(String.valueOf(XSLT_DATA)));
     Element templdata = doc.createElement("TemplateData");
     xslt.appendChild(templdata);
