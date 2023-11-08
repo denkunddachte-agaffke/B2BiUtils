@@ -20,7 +20,7 @@ setlocal ENABLEDELAYEDEXPANSION
 set jar=
 FOR /R %MYDIR% %%F IN (B2BUtils*.jar) DO set jar=%%F
 
-%JAVA%  -Dddutils.debug=false -Dde.denkunddachte.sfgapi.Workflowdefinition.enableDelete=false -cp %jar% %MAINCLASS% --noutf8 %*
+%JAVA%  -Dddutils.debug=false -Dde.denkunddachte.sfgapi.Workflowdefinition.enableDelete=false -cp %jar% %MAINCLASS% %*
 set RC=%ERRORLEVEL%
 
 exit /B %RC%
