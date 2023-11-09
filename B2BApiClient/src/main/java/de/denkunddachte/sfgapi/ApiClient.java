@@ -362,10 +362,10 @@ public abstract class ApiClient implements Exportable {
    * Remove the /result/row tiers from JSON string.
    */
   private static String convertJSONFromWsApi(String json, ResponseType type) {
-    if (json.length() < 19 || !json.substring(0, 19).contains("\"result\"")) {
+    if (json.length() < 13 || !json.substring(0, (json.length() < 20 ? json.length() : 19)).contains("\"result\"")) {
       return json;
     }
-    if (!json.contains("\"row\"")) {
+    if (!json.contains("\"row\"") && type == ResponseType.JSON_ARRAY) {
       return "[]";
     }
     int p1 = json.indexOf('[');
