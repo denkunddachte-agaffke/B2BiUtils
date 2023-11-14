@@ -21,6 +21,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -411,18 +412,21 @@ public class PropertyFiles extends ApiClient {
     if (!useWsApi(WFD_WS_API)) {
       throw new ApiException("The " + WFD_WS_API + " API is not implemented or not configured in ApiConfig!");
     }
-    final List<String> nodes = new ArrayList<>();
+    if (prefix == null || prefix.isEmpty()) {
+      prefix = "%";
+    }
+    final List<String> props = new ArrayList<>();
     try {
-      JSONArray json = getJSONArray(getJSONFromWsApi(WFD_WS_API, "&prefix=" + prefix, true));
+      JSONArray json = getJSONArray(getJSONFromWsApi(WFD_WS_API, "&prefix=" + urlEncode(prefix), true));
       if (ApiClient.getApiReturnCode() != 200) {
         throw new ApiException("WS API returned " + ApiClient.getApiReturnCode() + "/" + ApiClient.getApiErrorMsg());
       }
       for (int i = 0; i < json.length(); i++) {
-        nodes.add(json.getJSONObject(i).getString("NODE_NAME"));
+        props.add(String.format("%s:%s", json.getJSONObject(i).getString("NODE_NAME"), json.getJSONObject(i).getString("PROPERTY_FILE_PREFIX") ));
       }
-    } catch (JSONException e) {
+    } catch (JSONException | UnsupportedEncodingException e) {
       throw new ApiException(e);
     }
-    return nodes;
+    return props;
   }
 }

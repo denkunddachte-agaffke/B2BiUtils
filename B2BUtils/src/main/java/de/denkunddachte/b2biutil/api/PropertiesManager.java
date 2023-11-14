@@ -410,8 +410,13 @@ public class PropertiesManager extends AbstractConsoleApp {
 
   private void refresh(String prefix) throws ApiException {
     if (PropertyFiles.canRefresh()) {
-      List<String> nodes = PropertyFiles.refreshCache(prefix);
-      System.out.format("Refreshed properties prefix %s on %s%n", prefix, nodes);
+      List<String> props = PropertyFiles.refreshCache(prefix);
+      if (props.isEmpty()) {
+        System.err.println("No matching properties refreshed on server!");
+        rc = 1;
+      } else {
+        System.out.format("Refreshed properties: %s%n", props);
+      }
     } else {
       final String       bpname = cfg.getString(Props.PROP_REFRESH_PROPERTIES_BP, "DD_REFRESH_PROPERTIES");
       WorkflowDefinition wfd    = WorkflowDefinition.find(bpname);
