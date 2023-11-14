@@ -6,8 +6,7 @@ if "%dirname%" EQU "scripts" (
   set MYDIR=%MYDIR:~0,-1%\..
 )
 
-SET MAINCLASS=de.denkunddachte.b2biutil.workflow.WorkflowUtil
-SET REFRESH_BP=DD_REFRESH_PROPERTIES
+SET MAINCLASS=de.denkunddachte.b2biutil.api.PropertiesManager
 
 set JAVA=java.exe
 IF "%JRE_HOME%" NEQ "" (
@@ -21,7 +20,7 @@ setlocal ENABLEDELAYEDEXPANSION
 set jar=
 FOR /R %MYDIR% %%F IN (B2BUtils*.jar) DO set jar=%%F
 
-%JAVA%  -Dddutils.debug=false -cp %jar% %MAINCLASS% --noutf8 -E %REFRESH_BP%
+%JAVA%  -Dddutils.debug=false -cp %jar% %MAINCLASS% -R %1
 set RC=%ERRORLEVEL%
 
 exit /B %RC%
