@@ -102,10 +102,10 @@
     <condition>string-length(/ProcessData/PrimaryDocument/@SCIObjectID) &gt; 0</condition>
   </rule>
   <rule name="refreshProperties?">
-    <condition>api = 'refresh' and string-length(prefix) &gt; 0</condition>
+    <condition>api = 'refresh'</condition>
   </rule>
-  <rule name="moreNodes?">
-    <condition>string-length(NodeList/row[1]/NODE_NAME) &gt; 0</condition>
+  <rule name="moreProps?">
+    <condition>string-length(PropertyNodeList/row[1]/NODE_NAME) &gt; 0</condition>
   </rule>
 
   <sequence name="DD_API_WS">
@@ -114,7 +114,7 @@
     <operation name="Assign:config">
       <participant name="AssignService" />
       <output message="Xout">
-        <assign to="API_VERSION">0.3.0</assign>
+        <assign to="API_VERSION">0.4.0</assign>
         <assign to="DB_POOL">mssqlPool</assign>
         <assign to="HTTP_ERR_STATUS">500</assign>
         <assign to="OrigPrimaryDocument" from="/ProcessData/PrimaryDocument/@*"/>
@@ -865,34 +865,35 @@
         <assign to="." from="DOMToDoc(/ProcessData/TMP_STEP, 'PrimaryDocument', 'yes')" />
       </sequence>
       <!-- END OF sequence "runImport!" -->
-
       <sequence name="refreshProperties!">
-        <operation name="LJDBC:getNodeList">
+        <operation name="LJDBC:getPropertyNodeList">
           <participant name="DD_JDBC_ADAPTER_01" />
           <output message="LightweightJDBCAdapterTypeInputMessage">
             <assign to="query_type">SELECT</assign>
             <assign to="pool" from="string(DB_POOL)" />
             <assign to="result_name">result</assign>
             <assign to="row_name">row</assign>
-            <assign to="sql">SELECT NODE_NAME FROM OPS_NODE_INFO WHERE NODE_TYPE = 'ASI' AND NODE_STATUS = 200</assign>
+            <assign to="sql" from="concat('SELECT o.NODE_NAME, f.PROPERTY_FILE_PREFIX FROM OPS_NODE_INFO o JOIN CUSTOM_PROPERTY_FILE f ON 1 = 1', 
+            ' WHERE o.NODE_TYPE = ', q, 'ASI', q, ' AND o.NODE_STATUS = 200 AND f.PROPERTY_FILE_ID &gt; 0', 
+            ' AND f.PROPERTY_FILE_PREFIX LIKE ', q, if(string-length(prefix) &gt; 0, prefix, '%'), q)" />
           </output>
           <input message="Xin">
             <assign to="PrimaryDocument" from="PrimaryDocument/@*" />
           </input>
         </operation>
-        <assign to="NodeList" from="DocToDOM(PrimaryDocument, 'false', 'false')/*" append="true" />
-        <sequence name="moreNodesLoop">
-          <choice name="?moreNodes?">
+        <assign to="PropertyNodeList" from="DocToDOM(PrimaryDocument, 'false', 'false')/*" append="true" />
+        <sequence name="morePropsLoop">
+          <choice name="?moreProps?">
             <select>
-              <case ref="moreNodes?" activity="refreshNode!"/>
+              <case ref="moreProps?" activity="refreshNode!"/>
             </select>
             <sequence name="refreshNode!">
               <operation name="Cache Refresh Service">
                 <participant name="CacheRefreshService" />
                 <output message="CacheRefreshServiceTypeInputMessage">
                   <assign to="." from="*" />
-                  <assign to="mandatoryNode" from="string(NodeList/row[1]/NODE_NAME)" />
-                  <assign to="cache_name" from="string(prefix)" />
+                  <assign to="mandatoryNode" from="string(PropertyNodeList/row[1]/NODE_NAME)" />
+                  <assign to="cache_name" from="string(PropertyNodeList/row[1]/PROPERTY_FILE_PREFIX)" />
                   <assign to="cache_type">properties</assign>
                 </output>
                 <input message="inmsg">
@@ -903,19 +904,19 @@
                 <participant name="ReleaseService"/>
                 <output message="ReleaseServiceTypeInputMessage">
                   <assign to="." from="*"/>
-                  <assign to="TARGET">NodeList/row[1]|TMP_STEP</assign>
+                  <assign to="TARGET">PropertyNodeList/row[1]|TMP_STEP</assign>
                 </output>
                 <input message="inmsg">
                   <assign to="." from="*"/>
                 </input>
               </operation>
-              <repeat name="goto_next" ref="?moreNodes?"/>
+              <repeat name="goto_next" ref="?moreProps?"/>
             </sequence>
             <!-- END OF sequence "refreshNode!" -->
           </choice>
-          <!-- END OF choice "?moreNodes?" -->
+          <!-- END OF choice "?moreProps?" -->
         </sequence>
-        <!-- END OF sequence "moreNodesLoop" -->
+        <!-- END OF sequence "morePropsLoop" -->
       </sequence>
       <!-- End sequence "refreshProperties!" -->
 
