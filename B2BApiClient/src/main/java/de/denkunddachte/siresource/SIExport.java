@@ -117,9 +117,17 @@ public class SIExport {
     return getArtifact(artifact.getType(), artifact.getName(), artifact.getVersion());
   }
 
+  public SIArtifact getArtifact(SIArtifact artifact, boolean ignoreVersion) {
+    return getArtifact(artifact.getType(), artifact.getName(), (ignoreVersion ? -1 : artifact.getVersion()));
+  }
+
   public boolean hasArtifact(SIArtifact artifact) {
-    if (artifact.getVersion() == -1) {
-      return getArtifact(artifact) != null;
+    return hasArtifact(artifact, false);
+  }
+  
+  public boolean hasArtifact(SIArtifact artifact, boolean ignoreVersion) {
+    if (ignoreVersion || artifact.getVersion() == -1) {
+      return getArtifact(artifact, ignoreVersion) != null;
     } else {
       return artifacts.contains(artifact);
     }

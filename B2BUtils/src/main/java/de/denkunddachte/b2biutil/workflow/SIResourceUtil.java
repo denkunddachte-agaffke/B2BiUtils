@@ -39,7 +39,7 @@ public class SIResourceUtil extends AbstractConsoleApp {
     OPTIONS.section("Parse resource files");
     OPTIONS.add(Props.PROP_LIST + "|L", "List resource file contents");
     OPTIONS.add(Props.PROP_VALIDATE + "|v", "Validate resource or package file against directory");
-    OPTIONS.add(Props.PROP_EXTRACT + "|e=s", "Extract resource file to resource folder");
+    OPTIONS.add(Props.PROP_EXTRACT + "|e:s", "Extract resource file to resource folder (default: package folder)");
     OPTIONS.add(Props.PROP_ALL_VERSIONS, "Extract all resource versions.");
 
     // Create
@@ -85,7 +85,7 @@ public class SIResourceUtil extends AbstractConsoleApp {
       } else if (cfg.hasProperty(Props.PROP_VALIDATE)) {
         rc = (api.validate() ? 0 : 1);
       } else if (cfg.hasProperty(Props.PROP_EXTRACT)) {
-        api.extract(new File(cfg.getString(Props.PROP_EXTRACT)));
+        api.extract();
       } else if (cfg.hasProperty(Props.PROP_CREATE)) {
         api.create();
       }
@@ -127,8 +127,8 @@ public class SIResourceUtil extends AbstractConsoleApp {
     }
   }
 
-  private void extract(File pkgFile) throws ApiException {
-    SIExport si          = new SIExport(pkgFile);
+  private void extract() throws ApiException {
+    SIExport si          = new SIExport(packageFile);
     boolean  allVersions = cfg.getBoolean(Props.PROP_ALL_VERSIONS);
     if (!packageDir.isDirectory()) {
       packageDir.mkdirs();
@@ -152,6 +152,7 @@ public class SIResourceUtil extends AbstractConsoleApp {
         } else {
           destFile = p.toFile();
         }
+        System.out.format("Extract %s %s to %s%n", a.getType(), a.getName(), destFile);
         try (OutputStream os = new FileOutputStream(destFile)) {
           os.write(a.getData());
         }
@@ -300,8 +301,8 @@ public class SIResourceUtil extends AbstractConsoleApp {
     SIExport dir    = readPackageDir(packageDir);
     for (SIArtifact a : pkg.getArtifacts()) {
       System.out.format("%s %s ... ", a.getType(), a.getName());
-      if (dir.hasArtifact(a)) {
-        if (!a.getSha256Hash().equals(dir.getArtifact(a).getSha256Hash())) {
+      if (dir.hasArtifact(a, true)) {
+        if (!a.getSha256Hash().equals(dir.getArtifact(a, true).getSha256Hash())) {
           System.out.println("hash mismatch in pkg dir!");
           result = false;
         } else {
@@ -313,7 +314,7 @@ public class SIResourceUtil extends AbstractConsoleApp {
       }
     }
     for (SIArtifact a : dir.getArtifacts()) {
-      if (!pkg.hasArtifact(a)) {
+      if (!pkg.hasArtifact(a, true)) {
         System.out.format("Artifact %s in pkg dir not included in package!%n", a.key());
         result = false;
       }
