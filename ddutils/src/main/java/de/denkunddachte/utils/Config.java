@@ -60,7 +60,7 @@ public class Config {
   static {
     if (DEBUG)
       System.out.format("Config.static: installdir=%s%n", System.getProperty(Config.PROP_INSTALLDIR));
-    if (System.getProperty(Config.PROP_INSTALLDIR) == null) {
+    if (System.getProperty(Config.PROP_INSTALLDIR) == null || System.getProperty(Config.PROP_INSTALLDIR).isEmpty()) {
       try {
         StackTraceElement[] trace = Thread.currentThread().getStackTrace();
         if (trace.length > 0) {
