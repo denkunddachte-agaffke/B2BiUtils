@@ -19,6 +19,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -225,9 +227,13 @@ public class ApiConfig {
   private String                      user                              = System.getProperty("user.name");
 
   private static ApiConfig            instance;
+  private static ApiConfig            defaultInstance;
 
   private ApiConfig(String cfg) throws ApiException {
     this.init(cfg);
+  }
+
+  private ApiConfig() {
   }
 
   private void init(String cfg) throws ApiException {
@@ -267,6 +273,7 @@ public class ApiConfig {
   public static ApiConfig getInstance(String cfg) throws ApiException {
     if (instance == null) {
       instance = new ApiConfig(cfg);
+      defaultInstance = instance;
     }
     return instance;
   }
@@ -274,6 +281,7 @@ public class ApiConfig {
   public static ApiConfig getInstance(Map<String, String> cfg) throws ApiException {
     if (instance == null) {
       instance = new ApiConfig(null);
+      defaultInstance = instance;
 
       if (cfg != null) {
         instance.loadMap(cfg.entrySet().stream().collect(Collectors.toMap(e -> (String) e.getKey(), e -> (String) e.getValue())));
@@ -281,6 +289,28 @@ public class ApiConfig {
       }
     }
     return instance;
+  }
+
+  /**
+   * Creates a new instance of ApiConfig based on the initial singleton returned by getInstance() applying new values from overrides map.
+   * If overrides is null or empty, the singleton instance is returned.
+   * 
+   * @param overrides
+   * @return 
+   * @throws ApiException
+   */
+  public static ApiConfig updateInstance(Map<String, String> overrides) throws ApiException {
+    reset();
+    if (overrides != null) {
+      instance = defaultInstance.copy();
+      instance.loadMap(overrides.entrySet().stream().collect(Collectors.toMap(e -> (String) e.getKey(), e -> (String) e.getValue())));
+      instance.configFiles += ",OVERRIDES";
+    }
+    return instance;
+  }
+
+  public static void reset() throws ApiException {
+    instance = defaultInstance == null ? getInstance() : defaultInstance;
   }
 
   private void loadMap(Map<Object, Object> props) throws ApiException {
@@ -872,5 +902,25 @@ public class ApiConfig {
 
   public String getUser() {
     return user;
+  }
+
+  public ApiConfig copy() throws ApiException {
+    ApiConfig c = new ApiConfig();
+    for (Field f : c.getClass().getDeclaredFields()) {
+      if (Modifier.isPrivate(f.getModifiers())) {
+        boolean accessible = f.isAccessible();
+        f.setAccessible(true);
+        if (f.getType().isPrimitive() || f.getType().isAssignableFrom(String.class)) {
+          try {
+            f.set(c, f.get(this));
+          } catch (IllegalArgumentException | IllegalAccessException e) {
+            throw new ApiException(e);
+          } finally {
+            f.setAccessible(accessible);
+          }
+        }
+      }
+    }
+    return c;
   }
 }
