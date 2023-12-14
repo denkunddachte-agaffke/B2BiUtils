@@ -294,27 +294,29 @@ public class SshKey {
 
   public String getDigest() {
     try {
-      return getKeyDigest("SHA-256");
+      return getBase64KeyDigest("SHA-256");
     } catch (Exception e) {
       e.printStackTrace();
     }
     return null;
   }
 
-  public String getKeyDigest(String hashAlg) throws NoSuchAlgorithmException {
+  public String getBase64KeyDigest(String hashAlg) throws NoSuchAlgorithmException {
     MessageDigest digest = MessageDigest.getInstance(hashAlg);
     return Base64.getEncoder().encodeToString(digest.digest(Base64.getDecoder().decode(keyData)));
   }
 
+  public String getMD5Digest() throws NoSuchAlgorithmException {
+    MessageDigest digest = MessageDigest.getInstance("MD5");
+    return byteArrayToHex(digest.digest(Base64.getDecoder().decode(keyData)), ":");
+  }
+
   public String getKeyDigestInfo(String hashAlg) {
-    MessageDigest digest = null;
     try {
-      digest = MessageDigest.getInstance(hashAlg);
-      byte[] result = digest.digest(Base64.getDecoder().decode(keyData));
       if (hashAlg.equals("MD5")) {
-        return getKeySize() + " MD5:" + byteArrayToHex(result, ":") + (keyComment != null ? " " + keyComment : "") + " (" + getKeyAlgorithm() + ")";
+        return getKeySize() + " MD5:" + getMD5Digest() + (keyComment != null ? " " + keyComment : "") + " (" + getKeyAlgorithm() + ")";
       } else {
-        return getKeySize() + " " + digest.getAlgorithm() + ":" + Base64.getEncoder().encodeToString(result) + (keyComment != null ? " " + keyComment : "")
+        return getKeySize() + " " + hashAlg + ":" + getBase64KeyDigest(hashAlg) + (keyComment != null ? " " + keyComment : "")
             + " (" + getKeyAlgorithm() + ")";
       }
     } catch (NoSuchAlgorithmException e) {
