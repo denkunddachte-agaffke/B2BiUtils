@@ -133,6 +133,12 @@ public abstract class ApiClient implements Exportable {
   protected static boolean useWsApi(String svcName) {
     return apicfg.useWsApi(svcName);
   }
+  
+  public static void setConfig(ApiConfig cfg) {
+    if (cfg != null) {
+      apicfg = cfg;
+    }
+  }
 
   protected Date getDate(String isoDateTime) {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX");
