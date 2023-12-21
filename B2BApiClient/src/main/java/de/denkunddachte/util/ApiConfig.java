@@ -921,6 +921,7 @@ public class ApiConfig {
         }
       }
     }
+    c.useWsApiFor(wsApiList);
     return c;
   }
 }
