@@ -77,8 +77,15 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     cfg = Config.getConfig();
     // copy/overwrite config properties with command line options. Handle pointer to config file
     // first, because the config is reloaded from file when this property is set.
-    if (cmdLine.containsKey(Config.PROP_CONFIG_FILE) && !cfg.setConfig(cmdLine.get(Config.PROP_CONFIG_FILE).getValue())) {
-      throw new CommandLineException("Could not load config file from " + cmdLine.get(Config.PROP_CONFIG_FILE).getValue() + "!");
+    if (cmdLine.containsKey(Config.PROP_CONFIG_FILE)) {
+      String configFile = cmdLine.get(Config.PROP_CONFIG_FILE).getValue(); 
+      File f = new File(configFile);
+      if (!f.exists()) {
+        configFile = "${user.home}/.@,${user.home}/@,${installdir}/@".replace("@", f.getName());
+      }
+      if (!cfg.setConfig(configFile)) {
+        throw new CommandLineException("Could not load config file from " + cmdLine.get(Config.PROP_CONFIG_FILE).getValue() + "!");
+      }
     }
     // Optional: set default values for command line options from properties file(s):
     for (CommandLineOption o : getCommandLineConfig().getAllOptions()) {

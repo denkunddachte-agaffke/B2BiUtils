@@ -133,7 +133,7 @@ public abstract class ApiClient implements Exportable {
   protected static boolean useWsApi(String svcName) {
     return apicfg.useWsApi(svcName);
   }
-  
+
   public static void setConfig(ApiConfig cfg) {
     if (cfg != null) {
       apicfg = cfg;
@@ -470,7 +470,20 @@ public abstract class ApiClient implements Exportable {
       dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
       dbf.setXIncludeAware(false);
       dbf.setExpandEntityReferences(false);
-      return dbf.newDocumentBuilder().parse(is);
+      if ("true".equals(System.getProperty("de.denkunddachte.sfgapi.prefetchXml"))) {
+        StringBuffer sb = new StringBuffer();
+        char[] cbuf = new char[8192];
+        try (Reader rd = is.getCharacterStream()) {
+          int c;
+          while ((c = rd.read(cbuf)) > -1) {
+            sb.append(cbuf, 0, c);
+          }
+          LOGGER.log(Level.FINEST, "prefetchXml: {0}", sb);
+          return dbf.newDocumentBuilder().parse(sb.toString());
+        }
+      } else {
+        return dbf.newDocumentBuilder().parse(is);
+      }
     } catch (ParserConfigurationException | SAXException | IOException e) {
       throw new ApiException(e);
     }
