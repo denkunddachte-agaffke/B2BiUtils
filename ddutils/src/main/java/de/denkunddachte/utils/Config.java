@@ -174,8 +174,9 @@ public class Config {
     if (StringUtils.isNullOrWhiteSpace(filename)) {
       return null;
     }
-    String name = filename.replace("${installdir}", System.getProperty("installdir", ".")).replace("${workdir}", System.getProperty("workdir", "."))
-        .replaceAll("\\$\\{(?:user.home|HOME)\\}", System.getProperty("user.home", "."));
+    String name = filename.replace("${installdir}", Paths.get(System.getProperty("installdir", ".")).toFile().getAbsolutePath())
+      .replace("${workdir}", Paths.get(System.getProperty("workdir", ".")).toFile().getAbsolutePath())
+      .replaceAll("\\$\\{(?:user.home|HOME)\\}", Paths.get(System.getProperty("user.home", ".")).toFile().getAbsolutePath().replace('\\', '/'));
     File   f    = null;
     if (name.startsWith("**/") || filename.startsWith("**\\")) {
       name = name.substring(3);
