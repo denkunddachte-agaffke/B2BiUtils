@@ -707,6 +707,15 @@ public final class JavaTask {
       System.out.println("WFC: putPrimaryDocument: " + doc.getBodyName());
     }
 
+    public Document getDocument(String key) throws Exception {
+      File f = new File((String) getWFContent(key));
+      if (f.exists()) {
+        return new Document(f);
+      } else {
+        throw new Exception("No file found for document key " + key + "!");
+      }
+    }
+
     public void putDocument(Document doc) {
       System.out.println("WFC: putDocument: " + doc.getBodyName());
     }
@@ -819,7 +828,7 @@ public final class JavaTask {
     private byte[] body;
 
     public Document() {
-      this(null);
+      this((String) null);
     }
 
     public Document(String bodyName) {
@@ -839,6 +848,11 @@ public final class JavaTask {
       if (content != null) {
         this.body = content.getBytes();
       }
+    }
+
+    public Document(File f) {
+      this.docfile = f;
+      this.bodyName = f.getName();
     }
 
     public OutputStream getOutputStream() throws FileNotFoundException {
@@ -886,6 +900,10 @@ public final class JavaTask {
 
     public void setBody(byte[] body) {
       this.body = body;
+    }
+
+    public long getSize() {
+      return this.docfile.length();
     }
   }
 
@@ -1013,20 +1031,35 @@ public final class JavaTask {
     }
 
     public String getProperty(String propertyFile, String key) throws Exception {
+      return getProperty(propertyFile, key, null);
+    }
+
+    public String getProperty(String propertyFile, String key, String defaultVal) throws Exception {
       if (cache.get(propertyFile) == null) {
         throw new Exception("No such property file: " + propertyFile + "!");
       }
-      return cache.get(propertyFile).getProperty(key);
+      return cache.get(propertyFile).getProperty(key, defaultVal);
+    }
+
+    public long getIntProperty(String propertyFile, String key) throws Exception {
+      return getIntProperty(propertyFile, key, 0);
+    }
+
+    public long getIntProperty(String propertyFile, String key, int defaultVal) throws Exception {
+      return Integer.parseInt(getProperty(propertyFile, key, String.valueOf(defaultVal)));
+    }
+
+    public long getLongProperty(String propertyFile, String key) throws Exception {
+      return getLongProperty(propertyFile, key, 0);
+    }
+
+    public long getLongProperty(String propertyFile, String key, long defaultVal) throws Exception {
+      return Long.parseLong(getProperty(propertyFile, key, String.valueOf(defaultVal)));
     }
 
     public String getStringProperty(String propertyFile, String key, String defaultVal) throws Exception {
       String v = getProperty(propertyFile, key);
       return v == null ? defaultVal : v;
-    }
-
-    public int getIntProperty(String propertyFile, String key, int defaultVal) throws Exception {
-      String v = getProperty(propertyFile, key);
-      return v == null ? defaultVal : Integer.parseInt(v);
     }
   }
 }

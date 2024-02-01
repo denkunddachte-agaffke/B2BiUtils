@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 MYDIR=$(dirname $(readlink -f "$0"))
 if [ $(basename $MYDIR) == "scripts" ]; then
   MYDIR=$(dirname $MYDIR)
