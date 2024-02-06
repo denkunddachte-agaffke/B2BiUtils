@@ -344,9 +344,9 @@ public class SIExport {
       //md.appendChild(doc.createElement("ConfExpedite")).appendChild(doc.createTextNode("false"));
       md.appendChild(doc.createElement("ConfRemoval")).appendChild(doc.createTextNode(String.valueOf(wfd.getRemovalMethod().getCode())));
       md.appendChild(doc.createElement("ConfDocStorage")).appendChild(doc.createTextNode(String.valueOf(wfd.getDocumentStorage().getCode())));
-      md.appendChild(doc.createElement("ConfPriority")).appendChild(doc.createTextNode(String.valueOf(wfd.getQueue())));
+      md.appendChild(doc.createElement("ConfPriority")).appendChild(doc.createTextNode(String.valueOf(wfd.getQueue().getQueueNumber())));
       md.appendChild(doc.createElement("ConfRecoveryLevel")).appendChild(doc.createTextNode(String.valueOf(wfd.getRecoveryLevel().getCode())));
-      md.appendChild(doc.createElement("ConfSoftstopRecoveryLevel")).appendChild(doc.createTextNode(String.valueOf(wfd.getSoftstopRecoveryLevel().getCode())));
+      md.appendChild(doc.createElement("ConfSoftstopRecoveryLevel")).appendChild(doc.createTextNode(String.valueOf(wfd.getSoftstopRecoveryLevel().getSoftStopCode())));
       md.appendChild(doc.createElement("ConfOnfaultFlag")).appendChild(doc.createTextNode(Boolean.toString(wfd.isOnfaultProcessing())));
       md.appendChild(doc.createElement("ConfStatus")).appendChild(doc.createTextNode(wfd.isEnableBusinessProcess() ? "1" : "0"));
       md.appendChild(doc.createElement("ConfLastUsed")).appendChild(doc.createTextNode(ApiConfig.getInstance().getUser()));
