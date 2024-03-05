@@ -4,14 +4,16 @@ A collection of libraries and tools to help with business process development&de
 
 The project contains
 
-* [B2BApiClients](B2BApiClients/README.md): client libraries for B2Bi REST APIs, SEAS LDAP servers, SSP REST APIs
-* [B2BApiClients](B2BUtils/README.md): Command line tools (WorkflowUtil, LdapAdmin, MailboxMgr etc.)
-* [ddutils](ddutils/README.md): Utlilities
+* [B2BUtils](B2BUtils/README.md): Command line tools (WorkflowUtil, LdapAdmin, MailboxMgr etc.)
+* [VS Code helper](.vscode/README.md): Configuration files for Visual Studio Code integration
 * [JavaTaskHelper](JavaTaskHelper/README.md): Wrapper class to help developing and debugging JavaTask code.
+* [B2BApiClients](B2BApiClients/README.md): client libraries for B2Bi REST APIs, SEAS LDAP servers, SSP REST APIs
+* [ddutils](ddutils/README.md): Utlilities
 
 ## Releases
 
 Binary releases are available on [Github](https://github.com/denkunddachte-agaffke/B2BiUtils/releases).
+
 ## Building
 
 The project is built with gradle. To create a distribution package, run
@@ -20,7 +22,7 @@ The project is built with gradle. To create a distribution package, run
 [B2BiUtils] $ ./gradlew clean distTar
 ```
 
-or 
+or
 
 ```bash
 [B2BiUtils] $ ./gradlew clean distZip
@@ -28,7 +30,10 @@ or
 
 Packages are built in `[B2BiUtils]/B2BUtils/build/distributions`.
 
+
 ## Installation
+
+### Binary packages
 
 Extract binary package to destination dir. Make sure, a compatible JDK is installed. `java` binary is searched in
 
@@ -37,6 +42,20 @@ Extract binary package to destination dir. Make sure, a compatible JDK is instal
 * PATH
 
 Min. version in JDK-8. If you are handling SSH keys using elliptic curve algorithms (e.g. `Ed25519`), a JDK >= 17 is required.
+
+### Local installation with `gradle`
+
+To install on same machine where the package is built, you can add the property `b2biutils.install.dir=/path/to/b2butils` in `$HOME/.gradle/gradle.properties` and run 
+
+```bash
+[B2BiUtils] $ ./gradlew clean localInstall
+```
+
+Note: all files in `b2biutils.install.dir` will be overwritten/removed except
+
+* `apiconfig.properties`
+* `sshkeys.txt`
+* `*.cfg`
 
 ### `DD_API_WS` web service
 
@@ -49,13 +68,19 @@ The package comes with a helper business process `DD_API_WS` (see [DD_API_WS.bpm
 4. Create a Command Line Adapter 2 `DD_CLA_LOCAL` to run local on ASI server/pod (for execute BP)
 5. Create an empty JavaTask service `DD_JavaTaskService` with inline source (hint: put an "x" in source code to overcome dashboard validation)
 
-
-
 ## Configuration
+
+NOTE: passwords in config files should be encrypted with `b2bPasswordUtil.sh` or `b2bPasswordUtil.cmd`
+
+```bash
+$ b2bPasswordUtil.sh
+Enter password:
+{PBKDF2}AQAACmZahm7CNb7qUF8AAJxAAQAAEF9MX3ySrFMAfn6JaTiSSEAAEOYx012019BB9CdoKApS7oo=
+```
 
 Create configuration file `apiconfig.properties` (use `[installdir]/apiconfig-sample.properties` as template). The applications will look for a configuration file in the following locations:
 
-* file given by `--configfile` or `-C` option
+* file given by `--configfile` or `-C` option (fully qualified path or file name in `${workdir}`, `${user.home}` or `${installdir}`)
 * `${user.home}/.apiconfig.properties`
 * `${user.home}/apiconfig.properties`
 * `${installdir}/apiconfig.properties`
@@ -68,8 +93,7 @@ Depending on what you want to use, configure sections
 * `sfg.db.*`: required for JPA (manage custom tables)
 * `ldap.*`: if you want to manage LDAP users/ssh keys (with SEAS)
 * `ssp.*` and `cd.*`: If you want to access SSP REST APIs (currently only C:D netmap)
- 
 
 # Bugs/issues
-Please report issues, ideas, change requests etc. in [issues](https://github.com/denkunddachte-agaffke/B2BiUtils/issues).
 
+Please report issues, ideas, change requests etc. in [issues](https://github.com/denkunddachte-agaffke/B2BiUtils/issues).
