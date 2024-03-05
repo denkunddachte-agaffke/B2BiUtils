@@ -69,6 +69,9 @@ The simple SFTP client tool `sftpclient.sh`/`sftpclient.cmd` can be used to send
 ## BPML code snippets for Visual Studio Code
 
 The `bpml.code-snippets` provides autocompletion for many commonly used service/adapter calls on Sterling B2B Integrator.
+
+![Alt text](../images/vscode-img9.png)
+
 Put this file into `[ProjectDir]/.vscode` folder of your project and quickly create common operations by typping `bp` and choosing the service/adapter call you want to add to your code.
 
 ## Notes
@@ -103,6 +106,15 @@ When working with XML files (like ProcessData), it is helpful to have the XPath 
    ]
 ...
 ```
+### Get XPath from XML document
+
+![Alt text](../images/vscode-img10.png)
+
+### Evaluate XPath on XML document
+
+![Alt text](../images/vscode-img11.png)
+
+![Alt text](../images/vscode-img12.png)
 
 ## B2B Integrator services and adpaters
 
