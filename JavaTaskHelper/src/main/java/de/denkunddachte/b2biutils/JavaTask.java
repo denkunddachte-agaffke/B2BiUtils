@@ -103,7 +103,7 @@ public final class JavaTask {
   /**
    * Define your test code in public static test<name>(String... args) methods here:
    */
-  
+
   /**
    * IBM's sample JavaTask (see <a href="https://www.ibm.com/support/pages/how-work-ibm-sterling-b2b-integrator-javatask-service">...</a>)
    * @return String ("OK")
@@ -136,11 +136,11 @@ public final class JavaTask {
     // import java.io.InputStream; import java.io.OutputStream;
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import com.sterlingcommerce.woodstock.util.frame.Manager;
-    
-    //Setup dummy property:
+
+    // Setup dummy property:
     Manager.setProperty("myprops", "test", "Test value.");
-    // 
-    
+    //
+
     String test = Manager.getProperty("myprops", "test");
     log.log("Run JavaTaskSample... test=" + test);
     Random randomGenerator = new Random();
@@ -205,9 +205,9 @@ public final class JavaTask {
     // import com.sterlingcommerce.woodstock.workflow.Document;
     // import java.util.Base64; import java.util.Base64.Encoder;
     // import java.io.InputStream; import java.io.OutputStream;
-    
+
     // PrimaryDocumentData: Hello World!
-    
+
     Encoder      enc    = Base64.getEncoder();
     Document     doc    = wfc.getPrimaryDocument();
     Document     newDoc = new Document();
@@ -225,19 +225,19 @@ public final class JavaTask {
   }
 
   public static String testXML2JSON(String... args) throws Exception {
-    //import java.io.InputStream; import java.io.OutputStream;
-    //import com.sterlingcommerce.woodstock.workflow.Document;
-    //import org.json.JSONObject; import org.json.XML;
-    JSONObject json =  XML.toJSONObject(new String(wfc.getPrimaryDocument().getBody()));
-    Document doc = wfc.newDocument();
-    OutputStream os = doc.getOutputStream();
+    // import java.io.InputStream; import java.io.OutputStream;
+    // import com.sterlingcommerce.woodstock.workflow.Document;
+    // import org.json.JSONObject; import org.json.XML;
+    JSONObject   json = XML.toJSONObject(new String(wfc.getPrimaryDocument().getBody()));
+    Document     doc  = wfc.newDocument();
+    OutputStream os   = doc.getOutputStream();
     os.write(json.toString().getBytes());
     os.flush();
     os.close();
     wfc.putPrimaryDocument(doc);
     return "JSON";
   }
-  
+
   /**
    * Internal:
    */
@@ -370,11 +370,12 @@ public final class JavaTask {
   }
 
   private static File getSourceFile() {
-    File f = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(), JavaTask.class.getName().replace(".", "/") + ".java");
+    File         f  = new File(JavaTask.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
+        JavaTask.class.getName().replace(".", "/") + ".java");
     // If running in eclipse, look for source file in src folder (assuming default output mapping src/main/java -> bin/main)
     final String LF = (new File(".")).separator;
     if (!f.exists()) {
-      f = new File(f.getAbsolutePath().replace( "/bin/main/".replace("/", LF), "/src/main/java/".replace("/", LF)));
+      f = new File(f.getAbsolutePath().replace("/bin/main/".replace("/", LF), "/src/main/java/".replace("/", LF)));
     }
     return f;
   }
@@ -594,6 +595,12 @@ public final class JavaTask {
       if (o == null) {
         return null;
       }
+      // if (enableXPath) {
+      // if (o instanceof NodeList) {
+      // return o;
+      // }
+      // }
+
       Node n = (Node) o;
       if (!n.hasChildNodes()) {
         return n.getTextContent();
@@ -950,12 +957,13 @@ public final class JavaTask {
    *
    */
   static class JDBCService {
-    private String             jdbcDriver;
-    private String             connectionString;
-    private String             username;
-    private String             password;
-    private String             poolName;
-    private static JDBCService instance;
+    private String                                jdbcDriver;
+    private String                                connectionString;
+    private String                                username;
+    private String                                password;
+    private String                                poolName;
+    private final static Map<String, JDBCService> instances = new HashMap<>();
+    private static String                         defaultPool;
 
     public JDBCService(String poolName, String jdbcDriver, String connectionString, String username, String password) {
       super();
@@ -964,22 +972,30 @@ public final class JavaTask {
       this.connectionString = connectionString;
       this.username = username;
       this.password = password;
-      instance = this;
     }
 
     public static JDBCService getInstance(String poolName, String jdbcDriver, String connectionString, String username, String password) {
-      if (instance == null)
-        instance = new JDBCService(poolName, jdbcDriver, connectionString, username, password);
-      return instance;
+      if (instances.get(poolName) == null) {
+        if (instances.size() == 0) {
+          defaultPool = poolName;
+        }
+        instances.put(poolName, new JDBCService(poolName, jdbcDriver, connectionString, username, password));
+
+      }
+      return instances.get(poolName);
     }
 
     public static Connection getConnection() throws Exception {
-      return getConnection(instance.poolName);
+      return getConnection(defaultPool);
     }
 
     public static Connection getConnection(String poolName) throws Exception {
-      Class.forName(poolName);
-      return DriverManager.getConnection(instance.connectionString, instance.username, instance.password);
+      JDBCService instance = instances.get(poolName);
+      if (instance == null) {
+        throw new IllegalArgumentException("No JDBC pool \"" + poolName + "\" instantiated!");
+      }
+      Class.forName(instance.getJdbcDriver());
+      return DriverManager.getConnection(instance.getConnectionString(), instance.getUsername(), instance.getPassword());
     }
 
     public String getPoolName() {
@@ -1045,7 +1061,7 @@ public final class JavaTask {
       return getIntProperty(propertyFile, key, 0);
     }
 
-    public long getIntProperty(String propertyFile, String key, int defaultVal) throws Exception {
+    public int getIntProperty(String propertyFile, String key, int defaultVal) throws Exception {
       return Integer.parseInt(getProperty(propertyFile, key, String.valueOf(defaultVal)));
     }
 
