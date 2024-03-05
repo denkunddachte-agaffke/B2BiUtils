@@ -674,10 +674,10 @@
               final Node result = doc.createElement("RESULT");
               try {
                 conn = Conn.getConnection();
-                log.log("conn=" + conn);
+                log.log("DD_API_WS.requestRefreshWfd: conn=" + conn);
                 String wfdId = (String)wfc.getWFContent("DB/result/row[1]/WFD_ID", true);
                 String version = (String)wfc.getWFContent("DB/result/row[1]/DEFAULT_VERSION", true);
-                log.log("WFD=" + wfdId + ":" + version);
+                log.log("DD_API_WS.requestRefreshWfd: WFD=" + wfdId + ":" + version);
                 result.appendChild(doc.createElement("WFD_ID_VERSION")).setTextContent(wfdId + ":" + version);
                 CommonUtil.handleCacheUpdate(conn, "workflowdef", wfdId + ":" + version);
                 CommonUtil.handleCacheUpdate(conn, "workflowdef", wfdId);
