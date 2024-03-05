@@ -38,9 +38,33 @@ CTRL-SHIFT-T (test tasks) provides:
 
 ![Alt text](../images/vscode-img4.png)
 
-e.g. "Deploy & execute WFD" deploys WFD in editor on server and executes it and retrieves process trace with `b2bWorkflowMgr.sh -p /path/to/WFD_NAME.bpml -E WFD_NAME -X --pd=!,-1 `:
+## Examples
+
+### Deploy & excute WFD
+
+"Deploy & execute WFD" deploys WFD in editor on server and executes it and retrieves process trace with `b2bWorkflowMgr.sh -p /path/to/WFD_NAME.bpml -E WFD_NAME -X --pd=!,-1 `:
 
 ![Alt text](../images/vscode-img5.png)
+
+Other variants send primary document (generated with dummy text or from local file).
+
+### List properties
+
+"List a0test properties" lists all (DB) properties with prefix `a0test` (Specify your properties prefix in `tasks.json`):
+
+![Alt text](../images/vscode-img7.png)
+
+### Refresh properties
+
+"Refresh properties" will refresh all custom properties on all nodes:
+
+![Alt text](../images/vscode-img6.png)
+
+### Send file with SFTP client
+
+The simple SFTP client tool `sftpclient.sh`/`sftpclient.cmd` can be used to send files with SFTP with builtin key and generated dummy data and file names:
+
+![Alt text](../images/vscode-img8.png)
 
 ## BPML code snippets for Visual Studio Code
 
