@@ -238,7 +238,7 @@ public class LdapAdmin extends AbstractConsoleApp {
 
     if (cnt == 0) {
       System.out.format("No LDAP users found with base %s%s%n", dnBase, (globPattern == null ? "." : " matching pattern " + globPattern + "."));
-      rc = 1;
+      setRc(1);
     } else {
       System.out.format("%nFound %d LDAP users with base %s%s%n", cnt, dnBase, (globPattern == null ? "." : " matching pattern " + globPattern + "."));
     }
@@ -270,7 +270,7 @@ public class LdapAdmin extends AbstractConsoleApp {
 
   private void changePassword(String username, String newPassword, String digest) throws ApiException {
     LDAPUser user = null;
-    rc = 1;
+    setRc(1);
     try {
       user = ldap.getUser(username, dnBase);
       if (user == null) {
@@ -285,7 +285,7 @@ public class LdapAdmin extends AbstractConsoleApp {
       user.setPassword(getPassword(newPassword), digest);
       if (ldap.updateUser(user)) {
         System.out.println("Password changed for user " + user.getDn());
-        rc = 0;
+        setRc(0);
       } else {
         System.err.println("Password not changed for user " + user.getDn());
       }
@@ -296,7 +296,7 @@ public class LdapAdmin extends AbstractConsoleApp {
 
   private void createUser(String cn, String username, List<String> sshKeys, String password, String digest) throws ApiException {
     LDAPUser user = null;
-    rc = 1;
+    setRc(1);
     try {
       user = ldap.getUser(cn, dnBase);
       if (user != null) {
@@ -316,7 +316,7 @@ public class LdapAdmin extends AbstractConsoleApp {
       if (ldap.addUser(user)) {
         System.out.format("Added user %s.%n", user.getDn());
         listUsers(user.getCn(), true, true, true);
-        rc = 0;
+        setRc(0);
       } else {
         System.err.format("User %s not added!%n", user.getDn());
       }
@@ -328,7 +328,7 @@ public class LdapAdmin extends AbstractConsoleApp {
 
   private void deleteUser(String username) throws ApiException {
     LDAPUser user = null;
-    rc = 1;
+    setRc(1);
     try {
       user = ldap.getUser(username, dnBase);
       if (user == null) {
@@ -338,7 +338,7 @@ public class LdapAdmin extends AbstractConsoleApp {
       exportArtifact(user);
       if (ldap.deleteUser(user)) {
         System.out.format("Deleted user %s.%n", user.getDn());
-        rc = 0;
+        setRc(0);
       } else {
         System.err.format("User %s not deleted!%n", user.getDn());
       }
@@ -349,7 +349,7 @@ public class LdapAdmin extends AbstractConsoleApp {
 
   private void editKeys(String username, boolean deleteAllKeys, List<String> delKeys, List<String> addKeys, String deleteExcept) throws ApiException {
     LDAPUser user = null;
-    rc = 1;
+    setRc(1);
     try {
       user = ldap.getUser(username, dnBase);
       boolean update = false;
@@ -384,13 +384,13 @@ public class LdapAdmin extends AbstractConsoleApp {
         if (ldap.updateUser(user)) {
           System.out.format("Updated user %s.%n", user.getDn());
           listUsers(user.getCn(), true, true, true);
-          rc = 0;
+          setRc(0);
         } else {
           System.err.format("User %s not updated!%n", user.getDn());
         }
       } else {
         System.out.format("No SSH keys changes for user %s.%n", user.getDn());
-        rc = 0;
+        setRc(0);
       }
     } catch (NamingException e) {
       throw new ApiException(e);

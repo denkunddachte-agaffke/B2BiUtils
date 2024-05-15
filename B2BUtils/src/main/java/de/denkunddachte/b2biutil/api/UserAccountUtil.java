@@ -222,7 +222,7 @@ public class UserAccountUtil extends AbstractConsoleApp {
 
     if (userlist.isEmpty()) {
       System.out.format("No users found%s!%n", (globPattern == null || globPattern.isEmpty() ? "" : " matching pattern " + globPattern));
-      rc = 1;
+      setRc(1);
       return;
     }
     System.out.println(listHeader());

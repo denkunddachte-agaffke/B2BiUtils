@@ -669,7 +669,7 @@ public abstract class ApiClient implements Exportable {
   protected static JSONObject findByKey(String svcName, String key, Map<String, Object> params) throws ApiException {
     JSONObject json = null;
     try {
-      json = getJSON(get(svcName + SLASH + key, params));
+      json = getJSON(get(svcName + SLASH + urlEncode(key), params));
     } catch (JSONException | UnsupportedEncodingException e) {
       throw new ApiException(e);
     }
