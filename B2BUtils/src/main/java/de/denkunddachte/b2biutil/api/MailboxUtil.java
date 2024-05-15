@@ -204,7 +204,7 @@ public class MailboxUtil extends AbstractConsoleApp {
 
     if (mbxlist.isEmpty()) {
       System.out.format("No mailboxes found matching path: %s%n", (path == null || path.isEmpty() ? "/" : path));
-      rc = 1;
+      setRc(1);
       return;
     }
     int cnt = 0;
@@ -250,7 +250,7 @@ public class MailboxUtil extends AbstractConsoleApp {
     if (mbx.create()) {
       System.out.format("Created mailbox %s.%n", mbx.getPath());
     } else {
-      rc = 1;
+      setRc(1);
       System.err.format("Mailbox %s not created: error code=%s, error=%s%n", mbx.getPath(), ApiClient.getApiReturnCode(), ApiClient.getApiErrorMsg());
     }
   }
@@ -260,7 +260,7 @@ public class MailboxUtil extends AbstractConsoleApp {
     Mailbox mbx = Mailbox.find(mbxPath, caseSensitive);
     if (mbx == null) {
       System.out.format("Mailbox %s does not exist!%n", mbxPath);
-      rc = 1;
+      setRc(1);
       return;
     }
 
@@ -328,7 +328,7 @@ public class MailboxUtil extends AbstractConsoleApp {
           System.out.format("Updated mailbox %s%n", m);
         } else {
           System.err.format("Could not update mailbox %s: %s%n", m, ApiClient.getApiErrorMsg());
-          rc = 1;
+          setRc(1);
         }
       }
     }
@@ -340,7 +340,7 @@ public class MailboxUtil extends AbstractConsoleApp {
         new Object[] { mbxPath, caseSensitive, recurse, force, mbx });
     if (mbx == null) {
       System.out.format("Mailbox %s does not exist!%n", mbxPath);
-      rc = 1;
+      setRc(1);
       return;
     }
     if ((recurse && force) || mbx.getContents().isEmpty() || (mbx.getSubMailboxList().isEmpty() && force)) {
@@ -348,14 +348,14 @@ public class MailboxUtil extends AbstractConsoleApp {
         System.out.format("Deleted mailbox(es): %s%n", mbx);
       } else {
         System.err.format("Could not delete mailbox(es) %s: %s%n", mbx.getPath(), ApiClient.getApiErrorMsg());
-        rc = 1;
+        setRc(1);
       }
       return;
     }
 
     if (!mbx.getMessageList().isEmpty() || (!recurse && !mbx.getSubMailboxList().isEmpty())) {
       System.err.format("Mailbox not empty: %s%n", mbx.getPath());
-      rc = 1;
+      setRc(1);
       return;
     }
     // mbx contains submbx

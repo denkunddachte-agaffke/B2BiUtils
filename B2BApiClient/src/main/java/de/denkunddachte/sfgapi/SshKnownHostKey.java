@@ -20,6 +20,7 @@ import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import de.denkunddachte.exception.ApiException;
+import de.denkunddachte.ft.SshKey;
 
 public class SshKnownHostKey extends AbstractSfgKey {
   private static final Logger                       LOGGER           = Logger.getLogger(SshKnownHostKey.class.getName());
@@ -75,7 +77,22 @@ public class SshKnownHostKey extends AbstractSfgKey {
 
   @Override
   protected SshKnownHostKey readJSON(JSONObject json) throws JSONException, ApiException {
-    super.readJSON(json);
+    super.init(json);
+    this.keyName = json.optString("keyName");
+    if (json.has("keyData")) {
+      try {
+        String decoded = new String(Base64.getDecoder().decode(json.getString("keyData")));
+        this.sshKey = new SshKey(decoded.replaceFirst(".*(ssh-rsa|ssh-dss|ecdsa-sha2-\\S+|ssh-ed\\d+|rsa-sha2-\\d+\\s+.+)", "$1"));
+      } catch (Exception ike) {
+        throw new ApiException(ike);
+      }
+    }
+    if (json.has("keyStatusEnabled"))
+      this.keyStatusEnabled = json.getJSONObject("keyStatusEnabled").getBoolean("code");
+
+    this.keyId = json.optString("keyId");
+    this.keyFingerPrint = json.optString("keyFingerPrint");
+    this.keyLength = json.optInt("keyLength");
     return this;
   }
 
@@ -130,14 +147,14 @@ public class SshKnownHostKey extends AbstractSfgKey {
   private static List<SshKnownHostKey> findAllWithWSApi(String filter) throws ApiException {
     List<SshKnownHostKey> result = new ArrayList<>();
     try {
-      Document xmlDoc = getXmlDocumentFromWsApi(SVC_NAME, (filter != null ? "&searchFor=" + urlEncode(filter.replace('*', '%')) : null));
-      XPathFactory xPathFactory = XPathFactory.newInstance();
-      XPath xpath = xPathFactory.newXPath();
-      XPathExpression expr = xpath.compile("/result/row");
-      NodeList nl = (NodeList) expr.evaluate(xmlDoc, XPathConstants.NODESET);
+      Document        xmlDoc       = getXmlDocumentFromWsApi(SVC_NAME, (filter != null ? "&searchFor=" + urlEncode(filter.replace('*', '%')) : null));
+      XPathFactory    xPathFactory = XPathFactory.newInstance();
+      XPath           xpath        = xPathFactory.newXPath();
+      XPathExpression expr         = xpath.compile("/result/row");
+      NodeList        nl           = (NodeList) expr.evaluate(xmlDoc, XPathConstants.NODESET);
 
       for (int i = 0; i < nl.getLength(); i++) {
-        Node n = nl.item(i);
+        Node            n  = nl.item(i);
         SshKnownHostKey uk = new SshKnownHostKey((String) xpath.evaluate("./keyName", n, XPathConstants.STRING),
             (String) xpath.evaluate("./keyData", n, XPathConstants.STRING), true);
         uk.setGeneratedId(uk.getId());
@@ -175,7 +192,7 @@ public class SshKnownHostKey extends AbstractSfgKey {
   // find by key
   public static SshKnownHostKey find(String keyName) throws ApiException {
     SshKnownHostKey result = null;
-    JSONObject json = findByKey(SVC_NAME, keyName);
+    JSONObject      json   = findByKey(SVC_NAME, keyName);
     try {
       if (json.has(ERROR_CODE)) {
         LOGGER.log(Level.FINER, "SshKnownHostKey {0} not found: errorCode={1}, errorDescription={2}.",
@@ -216,7 +233,7 @@ public class SshKnownHostKey extends AbstractSfgKey {
 
   public static SshKnownHostKey grabWithSsh(String host, int port) throws ApiException {
     Session sshSession = null;
-    HostKey hostKey = null;
+    HostKey hostKey    = null;
     try {
       JSch jsch = new JSch();
       sshSession = jsch.getSession(null, host, port);
@@ -260,9 +277,9 @@ public class SshKnownHostKey extends AbstractSfgKey {
 
     SshKnownHostKey hostkey = null;
     try {
-      Inet4Address ia = (Inet4Address) Inet4Address.getByName(host);
-      String name = ia.getHostName().toLowerCase();
-      String ip = ia.getHostAddress();
+      Inet4Address ia   = (Inet4Address) Inet4Address.getByName(host);
+      String       name = ia.getHostName().toLowerCase();
+      String       ip   = ia.getHostAddress();
       hostkey = hostkeys.get(name + ":" + port);
       if (hostkey == null) {
         hostkey = hostkeys.get(ip + ":" + port);

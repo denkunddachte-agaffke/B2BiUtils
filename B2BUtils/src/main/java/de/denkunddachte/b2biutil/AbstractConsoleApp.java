@@ -47,12 +47,12 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
   protected static final DateTimeFormatter FMT_DTTM          = DateTimeFormatter.ofPattern("yy-MM-dd HH:mm:ss");
   protected static String                  MARK              = Common.ANSI_GREEN + "\u2714 " + Common.ANSI_RESET;
   protected static String                  UPDATE_WS_API     = "updateWsApi";
-  protected int                            rc                = 0;
+  private int                              rc                = 0;
   protected static final CommandLineParser OPTIONS           = new CommandLineParser(false);
   protected ExportOutput                   exporter          = null;
   // implement general site prefix mapping? see issue #31
-  //protected Map<String,String>             sitePrefixMap     = new LinkedHashMap<>();
-  protected Map<String,String>             svcNameMap        = new LinkedHashMap<>();
+  // protected Map<String,String> sitePrefixMap = new LinkedHashMap<>();
+  protected Map<String, String>            svcNameMap        = new LinkedHashMap<>();
 
   public AbstractConsoleApp(String[] args) throws CommandLineException, ApiException {
     LogConfig.initConfig();
@@ -78,8 +78,8 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     // copy/overwrite config properties with command line options. Handle pointer to config file
     // first, because the config is reloaded from file when this property is set.
     if (cmdLine.containsKey(Config.PROP_CONFIG_FILE)) {
-      String configFile = cmdLine.get(Config.PROP_CONFIG_FILE).getValue(); 
-      File f = new File(configFile);
+      String configFile = cmdLine.get(Config.PROP_CONFIG_FILE).getValue();
+      File   f          = new File(configFile);
       if (!f.exists()) {
         configFile = "${user.home}/.@,${user.home}/@,${installdir}/@".replace("@", f.getName());
       }
@@ -111,7 +111,7 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     // reinitialize logger (settings might have changed in config and/or commandline)
     LogConfig.initConfig();
 
-    LOG.log(Level.FINE, "Start {0} {1}", new Object[] {OPTIONS.getProgramName(), String.join(" ", args)});
+    LOG.log(Level.FINE, "Start {0} {1}", new Object[] { OPTIONS.getProgramName(), String.join(" ", args) });
 
     LOG.log(Level.FINER, "Populate ApiConfig from Config: {0}", cfg.getLoadedResources());
     LOG.log(Level.FINEST, "Map: {0}", cfg.getStringMap(null));
@@ -148,7 +148,7 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     }
     // cfg.setCommandLine(cmdLine);
 
-    //toMap(cfg.getString(Props.PROP_SITE_PREFIX_MAP), sitePrefixMap);
+    // toMap(cfg.getString(Props.PROP_SITE_PREFIX_MAP), sitePrefixMap);
     toMap(cfg.getString(Props.PROP_WSAPI_SVCMAP), svcNameMap);
     if (cmdLine.containsKey(UPDATE_WS_API)) {
       updateWsApi();
@@ -184,6 +184,10 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
 
   public int getRc() {
     return rc;
+  }
+
+  protected void setRc(int rc) {
+    this.rc = rc;
   }
 
   protected CharSequence separator(char c, int length) {
@@ -287,15 +291,15 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
   private void updateWsApi() throws ApiException {
     String bp = ApiClient.getWsApiVersion();
     try {
-      String bpName = mapResourceName(bp.substring(0, bp.lastIndexOf('-')));
-      File tmpFile = File.createTempFile(bpName, ".bpml");
+      String bpName  = mapResourceName(bp.substring(0, bp.lastIndexOf('-')));
+      File   tmpFile = File.createTempFile(bpName, ".bpml");
       tmpFile.deleteOnExit();
       try (Writer wr = new FileWriterWithEncoding(tmpFile, StandardCharsets.UTF_8);
           BufferedReader rd = new BufferedReader(
               new InputStreamReader(ApiClient.class.getClassLoader().getResourceAsStream("DD_API_WS.bpml"), StandardCharsets.UTF_8))) {
         String line;
         while ((line = rd.readLine()) != null) {
-          //wr.write(patchLine(line, (svcNameMap.isEmpty() ? sitePrefixMap : svcNameMap)));
+          // wr.write(patchLine(line, (svcNameMap.isEmpty() ? sitePrefixMap : svcNameMap)));
           wr.write(patchLine(line, svcNameMap));
           wr.append('\n');
         }
@@ -317,23 +321,23 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     }
     return out;
   }
-  
+
   protected String mapResourceName(String baseName) {
     for (Entry<String, String> e : svcNameMap.entrySet()) {
-        if (baseName.startsWith(e.getKey())) {
-          return e.getValue() + baseName.substring(e.getKey().length());
-        }
+      if (baseName.startsWith(e.getKey())) {
+        return e.getValue() + baseName.substring(e.getKey().length());
+      }
     }
     return baseName;
   }
-  
+
   private void toMap(String mapstr, Map<String, String> map) {
-    if(!mapstr.isEmpty()) {
+    if (!mapstr.isEmpty()) {
       for (String m : mapstr.split(",")) {
         if (m.indexOf(':') == -1) {
-          LOG.log(Level.WARNING, "Ignore invalid mapping {0} in [{1}].", new Object[] {m, mapstr});
+          LOG.log(Level.WARNING, "Ignore invalid mapping {0} in [{1}].", new Object[] { m, mapstr });
         } else {
-          map.put(m.substring(0, m.indexOf(':')), m.substring(m.indexOf(':')+1));
+          map.put(m.substring(0, m.indexOf(':')), m.substring(m.indexOf(':') + 1));
         }
       }
     }
