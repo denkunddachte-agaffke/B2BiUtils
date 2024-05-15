@@ -56,13 +56,15 @@ import java.util.regex.Pattern;
 
 public class SshKey {
   private static final int     VALUE_LENGTH     = 4;
-  private static final Pattern SSH_KEY_PATTERN  = Pattern.compile("(ssh-rsa|ssh-dss|ecdsa-sha2-\\S+|ssh-ed\\d+|rsa-sha2-\\d+)\\s+([A-Za-z0-9/+]+=*)\\s*(.*)[\\r\\n]*");
+  private static final Pattern SSH_KEY_PATTERN  = Pattern
+      .compile("(ssh-rsa|ssh-dss|ecdsa-sha2-\\S+|ssh-ed\\d+|rsa-sha2-\\d+)\\s+([A-Za-z0-9/+]+=*)\\s*(.*)[\\r\\n]*");
   private static final byte[]  ED25519_ASN1_HDR = new byte[] { 0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00 };
   private String               keyType;
   private String               keyData;
   private String               keyComment;
   private String               keyId;
   private PublicKey            pubKey;
+  int                          jvmVersion       = -1;
 
   public SshKey(File keyFile) throws InvalidKeyException {
     char[] keyData = new char[(int) keyFile.length()];
@@ -97,9 +99,9 @@ public class SshKey {
     String encodedKeyData = null;
     if (sshKey.matches("(?si)\\s*----+\\s*BEGIN .*?\\s*PUBLIC KEY.*")) {
       try (BufferedReader br = new BufferedReader(new StringReader(sshKey))) {
-        String line;
-        StringBuilder sb = new StringBuilder(1000);
-        boolean hasContinuation = false;
+        String        line;
+        StringBuilder sb              = new StringBuilder(1000);
+        boolean       hasContinuation = false;
         while ((line = br.readLine()) != null) {
           line = line.trim();
           if (hasContinuation) {
@@ -160,12 +162,12 @@ public class SshKey {
         } else if (keyType.startsWith("ecdsa-sha2")) {
           ECParameterSpec ecparams = getECParameterSpec(getString(is));
           this.pubKey = KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(decodePoint(getArray(is), ecparams.getCurve()), ecparams));
-        } else if (keyType.startsWith("ssh-ed25519")) {
-          byte[] pk = getArray(is);
+        } else if (keyType.startsWith("ssh-ed25519") && vmVersion() >= 15) {
+          byte[] pk         = getArray(is);
           byte[] asnEncoded = new byte[ED25519_ASN1_HDR.length + pk.length];
           System.arraycopy(ED25519_ASN1_HDR, 0, asnEncoded, 0, ED25519_ASN1_HDR.length);
           System.arraycopy(pk, 0, asnEncoded, ED25519_ASN1_HDR.length, pk.length);
-          KeyFactory kf = KeyFactory.getInstance("Ed25519");
+          KeyFactory     kf      = KeyFactory.getInstance("Ed25519");
           EncodedKeySpec keySpec = new X509EncodedKeySpec(asnEncoded);
           this.pubKey = kf.generatePublic(keySpec);
           if (!this.pubKey.getAlgorithm().equals("EdDSA")) {
@@ -180,6 +182,22 @@ public class SshKey {
     } catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
       throw new InvalidKeyException("Failed to read SSH certificate from key.", e);
     }
+  }
+
+  protected int vmVersion() {
+    if (jvmVersion == -1) {
+      String version = System.getProperty("java.version");
+      if (version.startsWith("1.")) {
+        version = version.substring(2, 3);
+      } else {
+        int dot = version.indexOf(".");
+        if (dot != -1) {
+          version = version.substring(0, dot);
+        }
+      }
+      jvmVersion = Integer.parseInt(version);
+    }
+    return jvmVersion;
   }
 
   private ECPoint decodePoint(byte[] data, EllipticCurve curve) throws IOException {
@@ -199,7 +217,7 @@ public class SshKey {
 
   private ECParameterSpec getECParameterSpec(String curve) throws NoSuchAlgorithmException, InvalidParameterSpecException {
     AlgorithmParameters params = AlgorithmParameters.getInstance("EC");
-    String name = curve.replace("nist", "sec") + "r1";
+    String              name   = curve.replace("nist", "sec") + "r1";
     params.init(new ECGenParameterSpec(name));
     return params.getParameterSpec(ECParameterSpec.class);
   }
@@ -221,7 +239,7 @@ public class SshKey {
   }
 
   private static byte[] getArray(InputStream is) throws IOException {
-    int len = getFieldLength(is);
+    int    len        = getFieldLength(is);
     byte[] valueArray = new byte[len];
     if (len != is.read(valueArray)) {
       throw new InvalidParameterException("Unable to read value.");
@@ -316,8 +334,7 @@ public class SshKey {
       if (hashAlg.equals("MD5")) {
         return getKeySize() + " MD5:" + getMD5Digest() + (keyComment != null ? " " + keyComment : "") + " (" + getKeyAlgorithm() + ")";
       } else {
-        return getKeySize() + " " + hashAlg + ":" + getBase64KeyDigest(hashAlg) + (keyComment != null ? " " + keyComment : "")
-            + " (" + getKeyAlgorithm() + ")";
+        return getKeySize() + " " + hashAlg + ":" + getBase64KeyDigest(hashAlg) + (keyComment != null ? " " + keyComment : "") + " (" + getKeyAlgorithm() + ")";
       }
     } catch (NoSuchAlgorithmException e) {
       e.printStackTrace();
@@ -326,7 +343,7 @@ public class SshKey {
   }
 
   private String byteArrayToHex(byte[] in, String delimeter) {
-    final int len = in.length;
+    final int           len = in.length;
     final StringBuilder out = new StringBuilder(len * 2);
     for (int i = 0; i < len; i++) {
       if (i > 0 && delimeter != null)
@@ -338,8 +355,8 @@ public class SshKey {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
+    final int prime  = 31;
+    int       result = 1;
     result = prime * result + ((keyData == null) ? 0 : getDigest().hashCode());
     return result;
   }
