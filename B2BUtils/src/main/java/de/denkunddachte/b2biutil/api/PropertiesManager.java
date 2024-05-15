@@ -413,7 +413,7 @@ public class PropertiesManager extends AbstractConsoleApp {
       List<String> props = PropertyFiles.refreshCache(prefix);
       if (props.isEmpty()) {
         System.err.println("No matching properties refreshed on server!");
-        rc = 1;
+        setRc(1);
       } else {
         System.out.format("Refreshed properties: %s%n", props);
       }

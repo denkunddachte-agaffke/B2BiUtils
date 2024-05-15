@@ -65,9 +65,11 @@ public final class Props {
   public static final String PROP_OFTP_ADAPTER_INT        = "sft.oftp.adapter.int";
   public static final String PROP_HTTP_CLIENT_ADAPTER_EXT = "sft.http.clientadapter.ext";
   public static final String PROP_HTTP_CLIENT_ADAPTER_INT = "sft.http.clientadapter.int";
+  public static final String PROP_HTTP_CLIENT_ADAPTER_SP  = "sft.http.clientadapter.sharepoint";
   public static final String PROP_DUP_DELIVERYPARMS       = "sft.duplicateDeliveryParamsIfMissing";
   public static final String PROP_FILL_DESCRIPTION        = "sft.transfer.description.action";
   public static final String PROP_FILL_ADDINFO            = "sft.transfer.additionalinfo.action";
+  public static final String PROP_DEFAULT_FETCH_SCHEDULE  = "sft.fetch.defaultSchedule";
   public static final String PROP_SSHKEYS                 = "sshkeys";
   public static final String PROP_PERMISSIONS             = "permissions";
   public static final String PROP_EXPORT_NULL             = "export.includeNullValues";
@@ -82,7 +84,16 @@ public final class Props {
   public static final String PROP_REFRESH_PROPERTIES_BP   = "refreshPropertiesBPName";
   public static final String PROP_REPLACE                 = "replace";
   public static final String PROP_DELETE_PREFIX           = "deletePrefix";
-  //public static final String PROP_SITE_PREFIX_MAP         = "resources.siteprefix.map";
+  // public static final String PROP_SITE_PREFIX_MAP = "resources.siteprefix.map";
   public static final String PROP_WSAPI_SVCMAP            = "sfgapi.wsapi.svcmap";
+  public static final String PROP_AUTO_HOSTKEY_ID         = "sft.sftp.autoHostKeyId";
+  public static final String PROP_AUTO_HOSTKEY_NAME       = "sft.sftp.autoHostKeyName";
+  public static final String PROP_IGNORE_INVALID_KEYS     = "sft.sftp.ignoreInvalidHostKeys";
+  public static final String PROP_CREATE_MISSING          = "sft.createMissingOnUpdate";
+  public static final String PROP_SET_LOAD_INFO           = "sft.additionalInfo.template";
+  public static final String PROP_BUBA_CACERT_NAME        = "sft.buba.cacert.name";
+  public static final String PROP_SRCFILE                 = "srcFile";
+  public static final String PROP_METHOD_PREFIX           = "methodPrefix";
+  public static final String PROP_COMPARE                 = "compare";
 
 }

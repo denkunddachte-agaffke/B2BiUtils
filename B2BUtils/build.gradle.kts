@@ -24,6 +24,9 @@ dependencies {
     implementation("org.xmlunit:xmlunit-core:2.9.1")
     implementation("org.xmlunit:xmlunit-matchers:2.9.1")
 
+    /* String Diff */
+    implementation("io.github.java-diff-utils:java-diff-utils:4.12")
+    
     /* SFTPClient / host key grabber: */
     implementation("com.github.mwiede:jsch:0.2.7")
 

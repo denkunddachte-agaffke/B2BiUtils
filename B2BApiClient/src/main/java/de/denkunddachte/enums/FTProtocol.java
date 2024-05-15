@@ -30,7 +30,10 @@ public enum FTProtocol {
 	DREMOVE_OE("DREMOVE/OE mode"),
 	DREMOVE_SSH("Plain DREMOVE mode"), 
 	EXT("External command"),
-	AWSS3("AWS S3");
+	AWSS3("AWS S3"),
+  PESIT("PeSIT"),
+  KX("Automatic Key Exchange (Producer)"),
+  SP("Sharepoint");
 	//@formatter:on
 
 	public final String name;
