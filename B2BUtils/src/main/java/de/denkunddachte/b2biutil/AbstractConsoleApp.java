@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -73,7 +74,18 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
       OPTIONS.addProgramHelp("");
       OPTIONS.addProgramHelp("Please report bugs, change requests, ideas at https://github.com/denkunddachte-agaffke/B2BiUtils/issues");
     }
-    ParsedCommandLine cmdLine = getCommandLineConfig().parse(args);
+
+    ParsedCommandLine cmdLine = null;
+    try {
+      cmdLine = getCommandLineConfig().parse(args);
+    } catch (CommandLineException ce) {
+      if (Arrays.asList(args).contains("--help")) {
+        getCommandLineConfig().printHelp();
+        System.exit(0);
+      } else {
+        throw ce;
+      }
+    }
     cfg = Config.getConfig();
     // copy/overwrite config properties with command line options. Handle pointer to config file
     // first, because the config is reloaded from file when this property is set.
