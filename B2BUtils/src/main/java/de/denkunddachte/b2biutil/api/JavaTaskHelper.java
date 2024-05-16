@@ -44,6 +44,8 @@ public class JavaTaskHelper extends AbstractConsoleApp {
     OPTIONS.add(Props.PROP_DELETE + "|d=s", "Delete JavaTask source property");
     OPTIONS.add("lf", "Force LF as line delimiter.");
 
+    OPTIONS.addProgramHelp("Note: Property names are case sensitive, method names are not!");
+    OPTIONS.addProgramHelp("");
     OPTIONS.addProgramHelp("Examples:");
     OPTIONS.addProgramHelp("  JavaTaskHelper -f /path/to/JavaTask.java -P javasrc -L");
     OPTIONS.addProgramHelp("  JavaTaskHelper -f /path/to/JavaTask.java -P javasrc -g testTask");
@@ -52,12 +54,13 @@ public class JavaTaskHelper extends AbstractConsoleApp {
     OPTIONS.addProgramHelp("  JavaTaskHelper -f /path/to/JavaTask.java -P javasrc -d testTask");
   }
 
-  private File       srcFile;
-  private String     methodPrefix;
-  private int columns = 200;
-  private String     methodName;
-  private Pattern    methodSignature;
-  private Pattern    methodEnd;
+  private File     srcFile;
+  private String   methodPrefix;
+  private String   methodName;
+  private Pattern  methodSignature;
+  private Pattern  methodEnd;
+  private int      colWidth;
+  private String[] diffHdr = new String[] { null, null };
 
   public JavaTaskHelper(String[] args) throws CommandLineException, ApiException {
     super(args);
@@ -74,15 +77,20 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       throw new CommandLineException("Property prefix not set!");
     }
     methodPrefix = cfg.getString(Props.PROP_METHOD_PREFIX);
+
+    int columns = 200;
     if (System.getenv("COLUMNS") != null) {
       columns = Integer.parseInt(System.getenv("COLUMNS"));
     }
+    colWidth = (columns - 6) / 2;
+
     methodName = cfg.getString(Props.PROP_GET, cfg.getString(Props.PROP_SET, cfg.getString(Props.PROP_DELETE, cfg.getString(Props.PROP_COMPARE))));
     if (methodName.startsWith(methodPrefix))
       methodName = methodName.substring(methodPrefix.length());
     if (!cfg.hasProperty(Props.PROP_LIST) && methodName.isEmpty())
       throw new CommandLineException("Method/property name is empty!");
-    methodSignature = Pattern.compile("(\\s+)public static String ((?:" + methodPrefix + ")?" + methodName + ")\\(String\\.\\.\\. args\\).*");
+    methodSignature = Pattern.compile("(\\s+)public static String ((?:" + methodPrefix + ")?" + methodName + ")\\(String\\.\\.\\. args\\).*",
+        Pattern.CASE_INSENSITIVE);
     methodEnd = Pattern.compile("\\s+return \".+?\";\\s*");
     if (cfg.hasProperty("lf"))
       LF = "\n";
@@ -137,15 +145,16 @@ public class JavaTaskHelper extends AbstractConsoleApp {
   }
 
   private void compare(String prefix) throws ApiException {
-    String localSrc = null;
-    String remoteSrc = null;
-    Property p = Property.find(prefix, methodName);
+    String   localSrc  = null;
+    String   remoteSrc = null;
+    Property p         = Property.find(prefix, methodName);
     if (p != null) {
       remoteSrc = p.getPropertyValue();
+      diffHdr[1] = "Property: " + prefix + "." + p.getPropertyKey();
     }
-    
+
     StringBuffer sb = getMethodSource();
-    if(sb != null) {
+    if (sb != null) {
       extractHeader(sb, "");
       localSrc = sb.toString();
     }
@@ -156,7 +165,7 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       } else {
         System.out.format("No local source for method %s in %s.%n", methodName, srcFile);
       }
-    } else  if (remoteSrc == null) {
+    } else if (remoteSrc == null) {
       System.out.format("No property for method %s.%s.%n", prefix, methodName);
     } else if (diff(localSrc, remoteSrc, true, false, -1)) {
       diff(localSrc, remoteSrc, true, true, -1);
@@ -174,6 +183,7 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       setRc(1);
       return false;
     }
+    diffHdr[1] = "Property: " + prefix + "." + p.getPropertyKey();
     StringBuffer methodSrc = getMethodSource();
     String       hdr       = "";
     if (methodSrc != null) {
@@ -230,7 +240,7 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       throw new ApiException(e);
     }
     if (mark != 0) {
-      tmpFile.delete() ;
+      tmpFile.delete();
       throw new ApiException("Failed to write source method to file " + srcFile + " [" + mark + "]!");
     } else {
       srcFile.delete();
@@ -265,9 +275,9 @@ public class JavaTaskHelper extends AbstractConsoleApp {
     }
 
     extractHeader(methodSrc, "");
-    String src = methodSrc.toString();
+    String   src = methodSrc.toString();
 
-    Property p = Property.find(prefix, methodName);
+    Property p   = Property.find(prefix, methodName);
     if (p == null) {
       PropertyFiles pf = PropertyFiles.find(prefix);
       if (pf == null) {
@@ -276,6 +286,9 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       pf.addProperty(methodName, src);
       System.out.format("Created source property [%s]%s%n", prefix, methodName);
     } else {
+      diffHdr[1] = diffHdr[0];
+      diffHdr[0] = "Property: " + prefix + "." + p.getPropertyKey();
+
       if (!diff(p.getPropertyValue(), src, true, true, 2)) {
         System.out.println("Source for method " + methodName + " unchanged.");
         setRc(1);
@@ -301,13 +314,16 @@ public class JavaTaskHelper extends AbstractConsoleApp {
 
     try (BufferedReader rd = new BufferedReader(new FileReader(srcFile))) {
       String line;
+      int    c = 0;
       while ((line = rd.readLine()) != null) {
+        c++;
         if (sb == null) {
           Matcher m = methodSignature.matcher(line);
           if (m.matches()) {
             sb = new StringBuffer();
             // indent is one level deeper than method indent:
             indent = m.group(1) + m.group(1);
+            diffHdr[0] = "Local method: " + m.group(2) + " (line " + c + ")";
           }
         } else {
           line = line.replaceFirst("^(\\s+)//\\s*import ", "$1import ");
@@ -404,7 +420,6 @@ public class JavaTaskHelper extends AbstractConsoleApp {
   }
 
   private void showDiff(int rowNum, DiffRow r) {
-    int  w = (columns - 6) / 2;
     char c;
     switch (r.getTag()) {
     case CHANGE:
@@ -421,7 +436,15 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       break;
     }
 
-    String fmt = String.format("%%-4d %%-%d.%ds%s%%-%d.%ds%%n", w, w, c, w, w);
-    System.out.format(fmt, rowNum, r.getOldLine(), r.getNewLine());
+    String fmt = String.format("%%-4s|%%-%d.%ds%%s%%-%d.%ds%%n", colWidth, colWidth, colWidth, colWidth);
+    if (diffHdr != null) {
+      System.out.format(fmt, "Line", diffHdr[0], "|", diffHdr[1]);
+      StringBuffer sb = new StringBuffer(colWidth);
+      for (int i = 0; i < colWidth; i++)
+        sb.append('-');
+      System.out.format(fmt, "----", sb, "|", sb);
+      diffHdr = null;
+    }
+    System.out.format(fmt, rowNum, r.getOldLine(), c, r.getNewLine());
   }
 }
