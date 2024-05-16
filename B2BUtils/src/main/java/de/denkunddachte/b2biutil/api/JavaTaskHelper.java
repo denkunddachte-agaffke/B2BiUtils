@@ -116,6 +116,7 @@ public class JavaTaskHelper extends AbstractConsoleApp {
       }
       rc = api.getRc();
     } catch (CommandLineException e) {
+      e.printStackTrace(System.err);
       System.exit(3);
     } catch (ApiException e) {
       e.printStackTrace(System.err);
