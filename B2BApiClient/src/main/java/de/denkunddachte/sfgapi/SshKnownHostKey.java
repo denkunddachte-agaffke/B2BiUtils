@@ -64,6 +64,10 @@ public class SshKnownHostKey extends AbstractSfgKey {
   public SshKnownHostKey(String keyName, String keyString, boolean keyStatusEnabled) throws InvalidKeyException {
     super(keyName, keyString, keyStatusEnabled);
   }
+  
+  public SshKnownHostKey(String keyName, SshKey sshKey, boolean keyStatusEnabled) throws InvalidKeyException {
+    super(keyName, sshKey, keyStatusEnabled);
+  }
 
   private SshKnownHostKey(JSONObject json) throws JSONException, ApiException {
     super();
@@ -88,7 +92,7 @@ public class SshKnownHostKey extends AbstractSfgKey {
       }
     }
     if (json.has("keyStatusEnabled"))
-      this.keyStatusEnabled = json.getJSONObject("keyStatusEnabled").getBoolean("code");
+      this.keyStatusEnabled = getBooleanCode(json, "keyStatusEnabled");
 
     this.keyId = json.optString("keyId");
     this.keyFingerPrint = json.optString("keyFingerPrint");

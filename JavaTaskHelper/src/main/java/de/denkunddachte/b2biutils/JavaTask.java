@@ -28,6 +28,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.Arrays;
@@ -400,6 +403,9 @@ public final class JavaTask {
             sb.append(line.replaceAll("^\\s*//\\s*", ""));
           } else if (line.contains("<ProcessData>")) {
             sb = new StringBuilder(line);
+          } else if (line.contains("ProcessDataFile:")) {
+            File f = new File(line.replaceAll(".*ProcessDataFile:\\s*(.+)\\s*$", "$1"));
+            return new String(Files.readAllBytes(Paths.get(f.toURI())), Charset.forName("UTF-8"));
           }
           if (line.contains("</ProcessData>")) {
             break;
@@ -438,6 +444,11 @@ public final class JavaTask {
             sb = new StringBuilder(line.replaceAll(".*PrimaryDocumentData:\\s*(.+)\\s*$", "$1"));
             if (sb.length() > 0) {
               sb.append(System.lineSeparator());
+            }
+          } else if (line.contains("PrimaryDocumentFile:")) {
+            File f = new File(line.replaceAll(".*PrimaryDocumentFile:\\s*(.+)\\s*$", "$1"));
+            if (f.exists()) {
+              return new Document(f);
             }
           } else {
             if (sb != null) {

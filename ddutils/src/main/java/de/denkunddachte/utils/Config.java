@@ -411,6 +411,7 @@ public class Config {
     for (String key : getKeys(prefix)) {
       map.put(key, props.get(key));
     }
+    map.put(PROP_CONFIG_FILE, loadedResources);
     return map;
   }
 
@@ -419,6 +420,7 @@ public class Config {
     for (String key : getKeys(prefix)) {
       map.put(key, String.valueOf(props.get(key)));
     }
+    map.put(PROP_CONFIG_FILE, loadedResources.get(loadedResources.size()-1));
     return map;
   }
 

@@ -176,7 +176,7 @@ public class Property extends ApiClient {
     if (json.has(PROPERTY_VALUE)) {
       this.propertyValue = json.getString(PROPERTY_VALUE);
     }
-    this.systemDefined = "Y".equalsIgnoreCase(json.getJSONObject(SYSTEM_DEFINED).getString(CODE));
+    this.systemDefined = "Y".equalsIgnoreCase(getStringCode(json, SYSTEM_DEFINED));
     if (json.has(PROPERTY_NODE_VALUE)) {
       setPropertyNodeValueURL(json.getJSONObject(PROPERTY_NODE_VALUE).getString(HREF));
     }
