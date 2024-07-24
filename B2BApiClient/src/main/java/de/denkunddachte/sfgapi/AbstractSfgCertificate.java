@@ -113,8 +113,8 @@ public abstract class AbstractSfgCertificate extends ApiClient {
 		this.systemCertId = json.getString("systemCertId");
 		this.createdOrUpdatedBy = json.getString("createdOrUpdatedBy");
 		this.creationOrUpdateTime = json.getString("creationOrUpdateTime");
-		this.verifyValidity = json.getJSONObject("verifyValidity").getBoolean("code");
-		this.verifyAuthChain = json.getJSONObject("verifyAuthChain").getBoolean("code");
+		this.verifyValidity = getBooleanCode(json, "verifyValidity");
+		this.verifyAuthChain = getBooleanCode(json, "verifyAuthChain");
 		return this;
 	}
 

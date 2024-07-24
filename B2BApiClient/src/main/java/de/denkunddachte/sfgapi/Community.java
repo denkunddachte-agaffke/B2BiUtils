@@ -98,13 +98,13 @@ public class Community extends ApiClient {
 	protected Community readJSON(JSONObject json) throws JSONException {
 		super.init(json);
 		this.name = json.getString("name");
-		this.partnersInitiateConnections = json.getJSONObject("partnersInitiateConnections").getBoolean("code");
-		this.partnersListenForConnections = json.getJSONObject("partnersListenForConnections").getBoolean("code");
-		this.ftpListening = json.getJSONObject("ftpListening").getBoolean("code");
-		this.cdListening = json.getJSONObject("cdListening").getBoolean("code");
-		this.sshListening = json.getJSONObject("sshListening").getBoolean("code");
-		this.wsListening = json.getJSONObject("wsListening").getBoolean("code");
-		this.partnerNotificationsEnabled = json.getJSONObject("partnerNotificationsEnabled").getBoolean("code");
+		this.partnersInitiateConnections = getBooleanCode(json, "partnersInitiateConnections");
+		this.partnersListenForConnections = getBooleanCode(json, "partnersListenForConnections");
+		this.ftpListening = getBooleanCode(json, "ftpListening");
+		this.cdListening = getBooleanCode(json, "cdListening");
+		this.sshListening = getBooleanCode(json, "sshListening");
+		this.wsListening = getBooleanCode(json, "wsListening");
+		this.partnerNotificationsEnabled = getBooleanCode(json, "partnerNotificationsEnabled");
 		if (json.has("customProtocols"))
 			setCustomProtocols(json.getString("customProtocols"));
 		return this;

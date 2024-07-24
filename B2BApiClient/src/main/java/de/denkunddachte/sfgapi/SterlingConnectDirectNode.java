@@ -108,10 +108,10 @@ public class SterlingConnectDirectNode extends ApiClient {
     this.maxRemotelyInitiatedSnodeSessionsAllowed = json.optInt("maxRemotelyInitiatedSnodeSessionsAllowed");
     this.alternateCommInfo = json.optString("alternateCommInfo");
 
-    this.securePlusOptionEnabled = json.getJSONObject("securePlusOption").getString("code").equalsIgnoreCase("ENABLED");
+    this.securePlusOptionEnabled = getStringCode(json, "securePlusOption").equalsIgnoreCase("ENABLED");
     if (securePlusOptionEnabled) {
       if (json.has("securityProtocol")) {
-        this.securityProtocol = TlsVersion.getByCode(json.getJSONObject("securityProtocol").getInt("code"));
+        this.securityProtocol = TlsVersion.getByCode(getIntCode(json, "securityProtocol"));
       } else {
         // API Bug: GET does not return securityProtocol, so assume TLS 1.2
         this.securityProtocol = TlsVersion.TLS_V12;
@@ -131,7 +131,7 @@ public class SterlingConnectDirectNode extends ApiClient {
         }
       }
       if (json.has("requireClientAuthentication")) {
-        this.requireClientAuthentication = json.getJSONObject("requireClientAuthentication").getString("code").equalsIgnoreCase("YES");
+        this.requireClientAuthentication = getStringCode(json, "requireClientAuthentication").equalsIgnoreCase("YES");
       }
     }
     return this;

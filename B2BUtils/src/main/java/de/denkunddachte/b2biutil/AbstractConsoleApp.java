@@ -121,6 +121,9 @@ public abstract class AbstractConsoleApp implements AutoCloseable {
     }
 
     // reinitialize logger (settings might have changed in config and/or commandline)
+    if (cfg.hasProperty("log.file") ) {
+      cfg.setProperty("log.level", cfg.getString(LogConfig.PROP_LOG_STDERR));
+    }
     LogConfig.initConfig();
 
     LOG.log(Level.FINE, "Start {0} {1}", new Object[] { OPTIONS.getProgramName(), String.join(" ", args) });

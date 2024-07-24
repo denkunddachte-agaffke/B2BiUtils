@@ -83,7 +83,7 @@ public class SystemDigitalCertificate extends AbstractSfgCertificate {
 	@Override
 	protected SystemDigitalCertificate readJSON(JSONObject json) throws JSONException {
 		super.readJSON(json);
-		this.crlCache = json.getJSONObject("crlCache").getBoolean("code");
+		this.crlCache = getBooleanCode(json, "crlCache");
 		return this;
 	}
 
