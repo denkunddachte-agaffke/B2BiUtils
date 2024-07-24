@@ -45,13 +45,17 @@ public class SshUserIdentityKey extends AbstractSfgKey {
   }
 
   public SshUserIdentityKey(String keyName, String privateKeyData, String passPhrase, boolean keyStatusEnabled) throws InvalidKeyException {
-    super(keyName, null, keyStatusEnabled);
+    super();
+    this.keyName = keyName;
+    this.keyStatusEnabled = keyStatusEnabled;
     this.passPhrase = passPhrase;
     this.privateKeyData = privateKeyData;
   }
 
   public SshUserIdentityKey(String keyName, File sshPrivateKeyFile, String passPhrase, boolean keyStatusEnabled) throws IOException, InvalidKeyException {
-    super(keyName, null, keyStatusEnabled);
+    super();
+    this.keyName = keyName;
+    this.keyStatusEnabled = keyStatusEnabled;
     try (InputStream is = new FileInputStream(sshPrivateKeyFile)) {
       byte[] data = new byte[(int) sshPrivateKeyFile.length()];
       is.read(data);

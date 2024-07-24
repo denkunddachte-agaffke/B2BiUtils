@@ -119,7 +119,7 @@ public class UserAccount extends ApiClient {
   }
 
   @Override
-  public JSONObject toJSON() throws JSONException {
+  public JSONObject toJSON() throws JSONException, ApiException {
     JSONObject json = new JSONObject();
     json.put(AUTHENTICATION_HOST, authenticationHost);
     json.put(AUTHENTICATION_TYPE, authenticationType.toString());
@@ -130,8 +130,8 @@ public class UserAccount extends ApiClient {
       }
       json.put(AUTHORIZED_USER_KEYS, a);
     }
-    json.put(EMAIL, usereMail);
-    json.put(GIVEN_NAME, givenName);
+    json.put(EMAIL, Validator.validateEmail(usereMail));
+    json.put(GIVEN_NAME, Validator.validateName(givenName));
     if (!assignedGroups.isEmpty()) {
       JSONArray a = new JSONArray();
       for (String g : assignedGroups.keySet()) {
@@ -153,7 +153,7 @@ public class UserAccount extends ApiClient {
     json.put(POLICY, userPolicy);
     json.put(PREFERRED_LANGUAGE, preferredLanguage.getCode());
     json.put(SESSION_TIMEOUT, (sessionTimeout > 0 ? sessionTimeout : null));
-    json.put(SURNAME, userSurname);
+    json.put(SURNAME, Validator.validateName(userSurname));
     json.put(USER_ID, userId);
     json.put(USER_IDENTITY, userIdentity);
     return json;
@@ -166,7 +166,7 @@ public class UserAccount extends ApiClient {
     this.userSurname = json.optString(SURNAME);
     this.givenName = json.optString(GIVEN_NAME);
     if (json.has(AUTHENTICATION_TYPE))
-      this.authenticationType = AuthType.valueOf(json.getJSONObject(AUTHENTICATION_TYPE).getString(CODE));
+      this.authenticationType = AuthType.valueOf(getStringCode(json, AUTHENTICATION_TYPE));
 
     this.usereMail = json.optString(EMAIL);
     if (json.has(GROUPS)) {
@@ -182,7 +182,7 @@ public class UserAccount extends ApiClient {
       }
     }
     if (json.has(PREFERRED_LANGUAGE))
-      this.preferredLanguage = UserLanguage.getByCode(json.getJSONObject(PREFERRED_LANGUAGE).getString(CODE));
+      this.preferredLanguage = UserLanguage.getByCode(getStringCode(json, PREFERRED_LANGUAGE));
     this.sessionTimeout = json.optInt(SESSION_TIMEOUT);
     this.userIdentity = json.optString(USER_IDENTITY);
     if (json.has(AUTHORIZED_USER_KEYS)) {
@@ -221,16 +221,16 @@ public class UserAccount extends ApiClient {
     return usereMail;
   }
 
-  public void setEmail(String email) {
-    this.usereMail = email;
+  public void setEmail(String email) throws ApiException {
+    this.usereMail = Validator.validateEmail(email);
   }
 
-  public String getGivenName() {
-    return givenName;
+  public String getGivenName() throws ApiException {
+    return Validator.validateName(givenName);
   }
 
-  public void setGivenName(String givenName) {
-    this.givenName = givenName;
+  public void setGivenName(String givenName) throws ApiException {
+    this.givenName = Validator.validateName(givenName);
   }
 
   public String getManagerId() {

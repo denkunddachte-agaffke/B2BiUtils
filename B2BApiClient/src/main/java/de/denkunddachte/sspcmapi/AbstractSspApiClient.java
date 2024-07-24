@@ -64,8 +64,6 @@ public abstract class AbstractSspApiClient implements AutoCloseable {
   private static final String    APPLICATION_XML     = "application/xml";
   protected static final String  X_AUTHENTICATION    = "X-Authentication";
   protected static final String  X_PASSPHRASE        = "X-Passphrase";
-  public static final String     API_DRYRUN_PROPERTY = "apiclient.dryrun";
-  protected static final boolean DRYRUN              = Boolean.parseBoolean(System.getProperty(API_DRYRUN_PROPERTY));
 
   public enum RequestType {
     GET, POST, PUT, DELETE
@@ -152,7 +150,7 @@ public abstract class AbstractSspApiClient implements AutoCloseable {
 
   private XmlResponse doPost(String svc, String method, String object, String data) throws ApiException {
     LOGGER.log(Level.FINEST, "doPost() service={0}, method={1}, object={2}, data:\n{3}", new Object[] { svc, method, object, data });
-    if (!SESSIONSVC.equals(svc) && DRYRUN) {
+    if (!SESSIONSVC.equals(svc) && apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, method={1}, object={2}.", new Object[] { "POST", method, object });
       LOGGER.log(Level.FINER, "DRY RUN: data: {0}.", data);
       return new XmlResponse(HttpStatus.SC_OK, "DRY-RUN", true);
@@ -180,7 +178,7 @@ public abstract class AbstractSspApiClient implements AutoCloseable {
 
   private XmlResponse doPut(String svc, String method, String object, String data) throws ApiException {
     LOGGER.log(Level.FINEST, "doPut() service={0}, method={1}, object={2}, data:\n{3}", new Object[] { svc, method, object, data });
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, method={1}, object={2}.", new Object[] { "PUT", method, object });
       LOGGER.log(Level.FINER, "DRY RUN: data: {0}.", data);
       return new XmlResponse(HttpStatus.SC_OK, "DRY-RUN", true);
@@ -208,7 +206,7 @@ public abstract class AbstractSspApiClient implements AutoCloseable {
 
   private XmlResponse doDelete(String svc, String method, String object) throws ApiException {
     LOGGER.log(Level.FINEST, "doDelete() service={0}, method={1}, object={2}", new Object[] { svc, method, object });
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, method={1}, object={2}.", new Object[] { "DELETE", method, object });
       return new XmlResponse(HttpStatus.SC_OK, "DRY-RUN", true);
     }

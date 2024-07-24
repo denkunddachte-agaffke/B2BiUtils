@@ -144,7 +144,7 @@ public class TradingPartner extends ApiClient {
     if (city != null)
       json.put("city", city);
     if (code != null)
-      json.put("code", code);
+      json.put(CODE, code);
     json.put("community", communityName);
     json.put("consumerCdConfiguration", (consumerCdConfiguration != null ? consumerCdConfiguration.toJSON() : null));
     json.put("consumerFtpConfiguration", (consumerFtpConfiguration != null ? consumerFtpConfiguration.toJSON() : null));
@@ -197,37 +197,37 @@ public class TradingPartner extends ApiClient {
     super.init(json);
     LOGGER.log(Level.FINEST, "json={0}", json);
     this.partnerName = json.getString("partnerName");
-    this.authenticationType = AuthType.valueOf(json.getJSONObject("authenticationType").getString("code"));
+    this.authenticationType = AuthType.valueOf(getStringCode(json, "authenticationType"));
     this.emailAddress = json.getString("emailAddress");
     this.givenName = json.optString("givenName");
     this.surname = json.optString("surname");
     this.username = json.optString("username");
     this.setCommunityName(json.getString("community"));
     this.phone = json.getString("phone");
-    this.asciiArmor = json.getJSONObject("asciiArmor").getBoolean("code");
+    this.asciiArmor = getBooleanCode(json, "asciiArmor");
     this.addressLine1 = json.getString("addressLine1");
     this.addressLine2 = json.getString("addressLine2");
     this.city = json.getString("city");
-    this.code = json.getString("code");
-    this.countryOrRegion = PartnerRegion.valueOf(json.getJSONObject("countryOrRegion").getString("code"));
-    this.doesRequireCompressedData = json.getJSONObject("doesRequireCompressedData").getBoolean("code");
-    this.doesRequireEncryptedData = json.getJSONObject("doesRequireEncryptedData").getBoolean("code");
-    this.doesRequireSignedData = json.getJSONObject("doesRequireSignedData").getBoolean("code");
-    this.doesUseSSH = json.getJSONObject("doesUseSSH").getBoolean("code");
-    this.useGlobalMailbox = json.getJSONObject("useGlobalMailbox").getBoolean("code");
-    this.keyEnabled = json.getJSONObject("keyEnabled").getBoolean("code");
+    this.code = json.getString(CODE);
+    this.countryOrRegion = PartnerRegion.valueOf(getStringCode(json, "countryOrRegion"));
+    this.doesRequireCompressedData = getBooleanCode(json, "doesRequireCompressedData");
+    this.doesRequireEncryptedData = getBooleanCode(json, "doesRequireEncryptedData");
+    this.doesRequireSignedData = getBooleanCode(json, "doesRequireSignedData");
+    this.doesUseSSH = getBooleanCode(json, "doesUseSSH");
+    this.useGlobalMailbox = getBooleanCode(json, "useGlobalMailbox");
+    this.keyEnabled = getBooleanCode(json, "keyEnabled");
     this.sessionTimeout = json.optInt("sessionTimeout");
     this.stateOrProvince = json.getString("stateOrProvince");
-    this.textMode = json.getJSONObject("textMode").getBoolean("code");
+    this.textMode = getBooleanCode(json, "textMode");
     if (json.has("timeZone")) {
-      this.timeZone = PartnerTimeZone.getByCode(json.getJSONObject("timeZone").getString("code"));
+      this.timeZone = PartnerTimeZone.getByCode(getStringCode(json, "timeZone"));
     } else {
       this.timeZone = DEFAULT_TIMEZONE;
     }
-    this.isInitiatingConsumer = json.getJSONObject("isInitiatingConsumer").getBoolean("code");
-    this.isInitiatingProducer = json.getJSONObject("isInitiatingProducer").getBoolean("code");
-    this.isListeningConsumer = json.getJSONObject("isListeningConsumer").getBoolean("code");
-    this.isListeningProducer = json.getJSONObject("isListeningProducer").getBoolean("code");
+    this.isInitiatingConsumer = getBooleanCode(json, "isInitiatingConsumer");
+    this.isInitiatingProducer = getBooleanCode(json, "isInitiatingProducer");
+    this.isListeningConsumer = getBooleanCode(json, "isListeningConsumer");
+    this.isListeningProducer = getBooleanCode(json, "isListeningProducer");
     this.publicKeyID = json.getString("publicKeyID");
 
     if (authenticationType == AuthType.External) {

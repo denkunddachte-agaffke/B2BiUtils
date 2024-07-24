@@ -307,25 +307,25 @@ public class WorkflowDefinition extends ApiClient {
     this.businessProcess = json.optString(BUSINESS_PROCESS);
     this.category = json.optString(CATEGORY);
     if (json.has(COMMIT_STEPS_UPON_ERROR))
-      this.commitStepsUponError = json.getJSONObject(COMMIT_STEPS_UPON_ERROR).getBoolean(CODE);
+      this.commitStepsUponError = getBooleanCode(json, COMMIT_STEPS_UPON_ERROR);
     if (json.has(DEADLINE_HOURS))
       this.deadlineHours = json.getInt(DEADLINE_HOURS);
     if (json.has(DEADLINE_MINUTES))
       this.deadlineMinutes = json.getInt(DEADLINE_MINUTES);
     this.defaultVersion = json.optInt(DEFAULT_VERSION);
     if (json.has(SET_THIS_VERSION_AS_DEFAULT))
-      this.setThisVersionAsDefault = json.getJSONObject(SET_THIS_VERSION_AS_DEFAULT).getBoolean(CODE);
+      this.setThisVersionAsDefault = getBooleanCode(json, SET_THIS_VERSION_AS_DEFAULT);
     this.description = json.optString(DESCRIPTION);
     if (json.has(DOCUMENT_STORAGE))
-      this.documentStorage = DocumentStorage.getByCode(json.getJSONObject(DOCUMENT_STORAGE).getInt(CODE));
+      this.documentStorage = DocumentStorage.getByCode(getIntCode(json, DOCUMENT_STORAGE));
     if (json.has(DOCUMENT_TRACKING))
-      this.documentTracking = json.getJSONObject(DOCUMENT_TRACKING).getBoolean(CODE);
+      this.documentTracking = getBooleanCode(json, DOCUMENT_TRACKING);
     if (json.has(ENABLE_TRANSACTION))
-      this.enableTransaction = json.getJSONObject(ENABLE_TRANSACTION).getBoolean(CODE);
+      this.enableTransaction = getBooleanCode(json, ENABLE_TRANSACTION);
     if (json.has(ENABLE_BUSINESS_PROCESS))
-      this.enableBusinessProcess = json.getJSONObject(ENABLE_BUSINESS_PROCESS).getBoolean(CODE);
+      this.enableBusinessProcess = getBooleanCode(json, ENABLE_BUSINESS_PROCESS);
     if (json.has(EVENT_REPORTING_LEVEL))
-      this.eventReportingLevel = ReportingLevel.getByCode(json.getJSONObject(EVENT_REPORTING_LEVEL).getInt(CODE));
+      this.eventReportingLevel = ReportingLevel.getByCode(getIntCode(json, EVENT_REPORTING_LEVEL));
     if (json.has(FIRST_NOTIFICATION_HOURS))
       this.firstNotificationHours = json.getInt(FIRST_NOTIFICATION_HOURS);
     if (json.has(FIRST_NOTIFICATION_MINUTES))
@@ -346,21 +346,21 @@ public class WorkflowDefinition extends ApiClient {
 
     this.modifiedBy = json.optString(MODIFIED_BY);
     if (json.has(NODE_PREFERENCE))
-      this.nodePreference = NodePreference.getByCode(json.getJSONObject(NODE_PREFERENCE).getInt(CODE));
+      this.nodePreference = NodePreference.getByCode(getIntCode(json, NODE_PREFERENCE));
     if (json.has(ONFAULT_PROCESSING))
-      this.onfaultProcessing = json.getJSONObject(ONFAULT_PROCESSING).getBoolean(CODE);
+      this.onfaultProcessing = getBooleanCode(json, ONFAULT_PROCESSING);
     if (json.has(PERSISTENCE_LEVEL))
-      this.persistenceLevel = PersistenceLevel.getByCode(json.getJSONObject(PERSISTENCE_LEVEL).getInt(CODE));
+      this.persistenceLevel = PersistenceLevel.getByCode(getIntCode(json, PERSISTENCE_LEVEL));
     if (json.has(QUEUE))
-      this.queue = Queue.getQueue(json.getJSONObject(QUEUE).getInt(CODE));
+      this.queue = Queue.getQueue(getIntCode(json, QUEUE));
     if (json.has(RECOVERY_LEVEL))
-      this.recoveryLevel = RecoveryLevel.getByCode(json.getJSONObject(RECOVERY_LEVEL).getInt(CODE));
+      this.recoveryLevel = RecoveryLevel.getByCode(getIntCode(json, RECOVERY_LEVEL));
     if (json.has(REMOVAL_METHOD))
-      this.removalMethod = RemovalMethod.getByCode(json.getJSONObject(REMOVAL_METHOD).getInt(CODE));
+      this.removalMethod = RemovalMethod.getByCode(getIntCode(json, REMOVAL_METHOD));
     if (json.has(SOFTSTOP_RECOVERY_LEVEL))
-      this.softstopRecoveryLevel = RecoveryLevel.getByCode(json.getJSONObject(SOFTSTOP_RECOVERY_LEVEL).getInt(CODE));
+      this.softstopRecoveryLevel = RecoveryLevel.getByCode(getIntCode(json, SOFTSTOP_RECOVERY_LEVEL));
     if (json.has(USE_BP_QUEUING))
-      this.useBPQueuing = json.getJSONObject(USE_BP_QUEUING).getBoolean(CODE);
+      this.useBPQueuing = getBooleanCode(json, USE_BP_QUEUING);
     this.wfdId = json.optInt(WFD_ID);
     // BUG: REST API returns the requested version number in "wfdVersion" if version does not exist!
     // Therefore, extract version from _id
@@ -762,7 +762,7 @@ public class WorkflowDefinition extends ApiClient {
           LOGGER.log(Level.FINE, "Skip default WFD version {0}", key);
           continue;
         }
-        if (DRYRUN) {
+        if (apicfg.isDryrun()) {
           LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, service={1}, params={2}.", new Object[] { "DELETE", SVC_NAME, key });
           continue;
         }
@@ -827,9 +827,9 @@ public class WorkflowDefinition extends ApiClient {
   public static List<WorkflowDefinition> findAll(String globPattern, VERSIONS getVersions, boolean withDetails, String... includeFields) throws ApiException {
     final List<WorkflowDefinition> result;
     if (useWsApi(WFD_WS_API)) {
-      result = findAllWithWSApi(globPattern + "%", getVersions);
+      result = findAllWithWSApi((globPattern == null ? null : globPattern + "%"), getVersions);
     } else {
-      result = findAllWithRESTApi(globPattern, includeFields);
+      result = findAllWithRESTApi(globPattern, getVersions, includeFields);
     }
 
     if (withDetails || !WFD_WS_API_FIELDS.containsAll(Arrays.asList(includeFields))) {
@@ -841,7 +841,7 @@ public class WorkflowDefinition extends ApiClient {
     return result;
   }
 
-  private static List<WorkflowDefinition> findAllWithRESTApi(String globPattern, String... includeFields) throws ApiException {
+  private static List<WorkflowDefinition> findAllWithRESTApi(String globPattern, VERSIONS getVersions, String... includeFields) throws ApiException {
     List<WorkflowDefinition> result = new ArrayList<>();
     try {
       Map<String, Object> params = new HashMap<>();
@@ -852,14 +852,42 @@ public class WorkflowDefinition extends ApiClient {
       }
       if (globPattern != null)
         params.put("searchFor", (globPattern != null ? globPattern.replace('*', '%') : null));
+      JSONObject o = null;
       while (true) {
         JSONArray jsonObjects = getJSONArray(get(SVC_NAME, params));
         for (int i = 0; i < jsonObjects.length(); i++) {
-          result.add(new WorkflowDefinition(jsonObjects.getJSONObject(i)));
+          switch (getVersions) {
+          case FIRST:
+            if (o == null || o.getLong("WFD_ID") != jsonObjects.getJSONObject(i).getLong("WFD_ID")) {
+              result.add(new WorkflowDefinition(o));
+              o = null;
+            } else {
+              o = jsonObjects.getJSONObject(i);
+            }
+            break;
+          case LAST:
+            o = jsonObjects.getJSONObject(i);
+            if (o.getLong("WFD_VERSION") == o.getLong("LATEST_VERSION")) {
+              result.add(new WorkflowDefinition(o));
+              o = null;
+            }
+            break;
+          case DEFAULT:
+            WorkflowDefinition wfd = new WorkflowDefinition(jsonObjects.getJSONObject(i));
+            if (wfd.isDefaultVersion())
+              result.add(wfd);
+            break;
+          case ALL:
+          default:
+            result.add(new WorkflowDefinition(jsonObjects.getJSONObject(i)));
+            break;
+          }
         }
         if (jsonObjects.length() < API_RANGESIZE)
           break;
       }
+      if (o != null)
+        result.add(new WorkflowDefinition(o));
     } catch (JSONException | UnsupportedEncodingException e) {
       throw new ApiException(e);
     }
@@ -1045,7 +1073,7 @@ public class WorkflowDefinition extends ApiClient {
   public static boolean changeDefaultVersion(String name, int version) throws ApiException {
     String key = (version == 0 ? name : name + "/" + version);
     LOGGER.log(Level.FINER, "changeDefaultVersion(); key={0}", key);
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, service={1}, params={2}.", new Object[] { "CREATE", SVC_NAME, key });
       return true;
     }
@@ -1097,7 +1125,7 @@ public class WorkflowDefinition extends ApiClient {
   private static boolean toggleEnabledWorkflowWithRestApi(String name, int version, boolean enableBusinessProcess) throws ApiException {
     String key = (version == 0 ? name : name + "/" + version);
     LOGGER.log(Level.FINER, "toggleEnabledWorkflowWithRestApi(); key={0}, enableBusinessProcess={1}", new Object[] { key, enableBusinessProcess });
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, service={1}, params={2}.",
           new Object[] { "POST", SVC_NAME, key + "/actions/toggleEnabledWorkflow" });
       return true;

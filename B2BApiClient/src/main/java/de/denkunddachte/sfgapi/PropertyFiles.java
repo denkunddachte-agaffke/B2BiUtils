@@ -160,8 +160,8 @@ public class PropertyFiles extends ApiClient {
       this.lastUpdatedOn = getDate(json.getString("lastUpdatedOn"));
     }
     if (json.has("componentEditable"))
-      this.componentEditable = "Y".equalsIgnoreCase(json.getJSONObject("componentEditable").getString("code"));
-    this.systemDefined = "Y".equalsIgnoreCase(json.getJSONObject("systemDefined").getString(CODE));
+      this.componentEditable = "Y".equalsIgnoreCase(getStringCode(json, "componentEditable"));
+    this.systemDefined = "Y".equalsIgnoreCase(getStringCode(json, "systemDefined"));
     return this;
   }
 

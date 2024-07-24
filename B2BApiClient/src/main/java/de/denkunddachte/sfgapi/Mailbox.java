@@ -143,7 +143,7 @@ public class Mailbox extends ApiClient {
     this.description = json.optString(DESCRIPTION);
     this.permissionName = json.optString(PERMISSION);
     if (json.has(MAILBOX_TYPE))
-      this.mailboxType = json.getJSONObject(MAILBOX_TYPE).getString(CODE);
+      this.mailboxType = getStringCode(json, MAILBOX_TYPE);
     this.linkedToMailboxId = json.optInt(LINKED_TO_MAILBOX);
     if (json.has(GROUPS) && !json.getString(GROUPS).isEmpty()) {
       for (String g : json.getString(GROUPS).split(",")) {
