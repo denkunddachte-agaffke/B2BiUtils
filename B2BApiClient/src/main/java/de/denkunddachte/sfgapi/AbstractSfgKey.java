@@ -44,6 +44,13 @@ public abstract class AbstractSfgKey extends ApiClient {
     this.keyStatusEnabled = keyStatusEnabled;
   }
 
+  protected AbstractSfgKey(String keyName, SshKey sshKey, boolean keyStatusEnabled) throws InvalidKeyException {
+    super();
+    this.keyName = keyName;
+    this.sshKey = sshKey;
+    this.keyStatusEnabled = keyStatusEnabled;
+  }
+
   @Override
   public String getId() {
     return getGeneratedId() == null ? keyName : getGeneratedId();
@@ -65,8 +72,7 @@ public abstract class AbstractSfgKey extends ApiClient {
         throw new ApiException(ike);
       }
     }
-    if (json.has("keyStatusEnabled"))
-      this.keyStatusEnabled = json.getJSONObject("keyStatusEnabled").getBoolean("code");
+    this.keyStatusEnabled = getBooleanCode(json, "keyStatusEnabled");
     this.keyId = json.optString("keyId");
     this.keyFingerPrint = json.optString("keyFingerPrint");
     this.keyLength = json.optInt("keyLength");

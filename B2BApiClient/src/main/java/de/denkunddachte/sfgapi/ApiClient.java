@@ -64,28 +64,27 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public abstract class ApiClient implements Exportable {
-  private static final Logger    LOGGER                   = Logger.getLogger(ApiClient.class.getName());
+  private static final Logger    LOGGER                     = Logger.getLogger(ApiClient.class.getName());
 
   // JSON fields
-  protected static final String  ID                       = "_id";
-  protected static final String  HREF                     = "href";
-  protected static final String  SLASH                    = "/";
-  protected static final String  LOCATION                 = "Location";
-  protected static final String  ERROR_DESCRIPTION        = "errorDescription";
-  protected static final String  ERROR_CODE               = "errorCode";
-  protected static final String  ROWS_AFFECTED            = "rowsAffected";
-  protected static final String  CODE                     = "code";
-  protected static final String  CONTENT_TYPE             = "Content-Type";
-  protected static final String  ACCEPT                   = "Accept";
-  protected static final String  ACCEPT_ENCODING          = "Accept-Encoding";
-  protected static final String  API_ACCEPT_ENCODING      = "gzip";
-  protected static final String  APPLICATION_JSON         = "application/json";
-  protected static final String  AUTHORIZATION            = "Authorization";
+  protected static final String  ID                         = "_id";
+  protected static final String  HREF                       = "href";
+  protected static final String  SLASH                      = "/";
+  protected static final String  LOCATION                   = "Location";
+  protected static final String  ERROR_DESCRIPTION          = "errorDescription";
+  protected static final String  ERROR_CODE                 = "errorCode";
+  protected static final String  ROWS_AFFECTED              = "rowsAffected";
+  protected static final String  CODE                       = "code";
+  protected static final String  CONTENT_TYPE               = "Content-Type";
+  protected static final String  ACCEPT                     = "Accept";
+  protected static final String  ACCEPT_ENCODING            = "Accept-Encoding";
+  protected static final String  API_ACCEPT_ENCODING        = "gzip";
+  protected static final String  APPLICATION_JSON           = "application/json";
+  protected static final String  AUTHORIZATION              = "Authorization";
 
-  protected static final boolean ID_MATCH_CASE_SENSITVE   = true;
-  protected static final boolean ID_MATCH_CASE_INSENSITVE = false;
+  protected static final boolean ID_MATCH_CASE_SENSITVE     = true;
+  protected static final boolean ID_MATCH_CASE_INSENSITVE   = false;
   protected static final int     API_RANGESIZE;
-  public static final String     API_DRYRUN_PROPERTY      = "apiclient.dryrun";
 
   // common API fields
   protected String               _id;
@@ -94,10 +93,9 @@ public abstract class ApiClient implements Exportable {
   // internal
   private boolean                refreshRequired;
   private JSONObject             origJSON;
-  protected static ApiConfig     apicfg                   = null;
+  protected static ApiConfig     apicfg                     = null;
   private static int             apiReturnCode;
   private static String          apiErrorMsg;
-  protected static final boolean DRYRUN                   = Boolean.parseBoolean(System.getProperty(API_DRYRUN_PROPERTY));
 
   static {
     try {
@@ -124,7 +122,7 @@ public abstract class ApiClient implements Exportable {
 
   public abstract String getIdProperty();
 
-  public abstract JSONObject toJSON() throws JSONException;
+  public abstract JSONObject toJSON() throws JSONException, ApiException;
 
   protected abstract ApiClient readJSON(JSONObject json) throws JSONException, ApiException;
 
@@ -471,8 +469,8 @@ public abstract class ApiClient implements Exportable {
       dbf.setXIncludeAware(false);
       dbf.setExpandEntityReferences(false);
       if ("true".equals(System.getProperty("de.denkunddachte.sfgapi.prefetchXml"))) {
-        StringBuffer sb = new StringBuffer();
-        char[] cbuf = new char[8192];
+        StringBuffer sb   = new StringBuffer();
+        char[]       cbuf = new char[8192];
         try (Reader rd = is.getCharacterStream()) {
           int c;
           while ((c = rd.read(cbuf)) > -1) {
@@ -546,34 +544,13 @@ public abstract class ApiClient implements Exportable {
   }
 
   protected static String get(final String svcName, final String parameter) throws ApiException {
-    String result    = null;
-    File   cacheFile = null;
-    if (apicfg.isCacheResults()) {
-      try {
-        cacheFile = new File(apicfg.getCacheDir(), urlEncode(svcName + SLASH + parameter));
-      } catch (UnsupportedEncodingException e) {
-        // ignore
-      }
-      if (cacheFile != null && cacheFile.exists() && cacheFile.lastModified() > (System.currentTimeMillis() - apicfg.getCacheExpiryMillis())) {
-        try (FileInputStream fis = new FileInputStream(cacheFile)) {
-          byte[] d = new byte[(int) cacheFile.length()];
-          fis.read(d);
-          result = new String(d, StandardCharsets.UTF_8.name());
-        } catch (Exception e) {
-          LOGGER.finer("Could not open cache file " + cacheFile + ": " + e.getMessage());
-        }
-      }
-    }
+    String result = getFromCache(svcName, parameter);
     if (result == null) {
       try {
         HttpRequestBase req = createRequest(RequestType.GET, getSvcUri(svcName, parameter), null);
         try (CloseableHttpResponse response = executeRequest(req)) {
           result = getJSONResponse(response);
-          if (cacheFile != null) {
-            try (FileOutputStream fos = new FileOutputStream(cacheFile)) {
-              fos.write(result.getBytes(StandardCharsets.UTF_8.name()));
-            }
-          }
+          writeCache(svcName, parameter, result);
         }
       } catch (IOException | URISyntaxException e) {
         throw new ApiException(e);
@@ -602,9 +579,10 @@ public abstract class ApiClient implements Exportable {
   }
 
   protected String create(final String svcName, final JSONObject data) throws ApiException {
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, service={1}.", new Object[] { "CREATE", svcName });
       LOGGER.log(Level.FINER, "DRY RUN: data: {0}.", data);
+      writeCache(svcName, getId(), data.toString());
       JSONObject o = new JSONObject();
       o.put(LOCATION, "Skipped (DRY RUN)");
       return o.toString();
@@ -645,9 +623,10 @@ public abstract class ApiClient implements Exportable {
   }
 
   protected String update(final String svcName, final String parameter, final JSONObject data) throws ApiException {
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, service={1}, params={2}.", new Object[] { "CREATE", svcName, parameter });
       LOGGER.log(Level.FINER, "DRY RUN: data: {0}.", data);
+      writeCache(svcName, getId(), data.toString());
       JSONObject o = new JSONObject();
       o.put(ROWS_AFFECTED, 1);
       return o.toString();
@@ -678,6 +657,61 @@ public abstract class ApiClient implements Exportable {
 
   protected static JSONObject findByKey(String svcName, String key) throws ApiException {
     return findByKey(svcName, key, null);
+  }
+
+  private static File getCacheFile(String svcName, String parameter) {
+    StringBuilder sb = new StringBuilder(svcName);
+    if (parameter != null && !parameter.isEmpty()) {
+      sb.append(SLASH).append(parameter);
+    }
+    try {
+      return new File(apicfg.getCacheDir(), URLEncoder.encode(sb.toString(), "UTF-8"));
+    } catch (UnsupportedEncodingException e) {
+      return null;
+    }
+  }
+
+  private static String getFromCache(String svcName, String parameter) {
+    String result = null;
+    if (apicfg.isCacheResults()) {
+      File cacheFile = getCacheFile(svcName, parameter);
+      if (cacheFile != null && cacheFile.exists() && cacheFile.lastModified() > (System.currentTimeMillis() - apicfg.getCacheExpiryMillis())) {
+        try (FileInputStream fis = new FileInputStream(cacheFile)) {
+          byte[] d = new byte[(int) cacheFile.length()];
+          fis.read(d);
+          result = new String(d, StandardCharsets.UTF_8.name());
+        } catch (Exception e) {
+          LOGGER.finer("Could not open cache file " + cacheFile + ": " + e.getMessage());
+        }
+      }
+    }
+    return result;
+  }
+
+  private static void writeCache(String svcName, String parameter, String data) throws ApiException {
+    if (data == null) {
+      deleteCache(svcName, parameter);
+    } else {
+      if (apicfg.isCacheResults()) {
+        File cacheFile = getCacheFile(svcName, parameter);
+        if (cacheFile != null) {
+          try (FileOutputStream fos = new FileOutputStream(cacheFile)) {
+            fos.write(data.getBytes(StandardCharsets.UTF_8.name()));
+          } catch (IOException e) {
+            throw new ApiException(e);
+          }
+        }
+      }
+    }
+  }
+
+  private static void deleteCache(String svcName, String parameter) throws ApiException {
+    if (apicfg.isCacheResults()) {
+      File cacheFile = getCacheFile(svcName, parameter);
+      if (cacheFile != null && cacheFile.exists()) {
+        cacheFile.delete();
+      }
+    }
   }
 
   protected void clearCache(String svcName) throws IOException {
@@ -714,8 +748,9 @@ public abstract class ApiClient implements Exportable {
   }
 
   protected String delete(final String svcName, final String parameter) throws ApiException {
-    if (DRYRUN) {
+    if (apicfg.isDryrun()) {
       LOGGER.log(Level.INFO, "DRY RUN: Skip operation={0}, service={1}, params={2}.", new Object[] { "CREATE", svcName, parameter });
+      deleteCache(svcName, parameter);
       JSONObject o = new JSONObject();
       o.put(ROWS_AFFECTED, 1);
       return o.toString();
@@ -791,6 +826,39 @@ public abstract class ApiClient implements Exportable {
       }
     }
     return result;
+  }
+
+  protected boolean getBooleanCode(JSONObject json, String key) {
+    if (json.has(key)) {
+      if (json.get(key) instanceof JSONObject) {
+        return json.getJSONObject(key).getBoolean(CODE);
+      } else {
+        return json.getBoolean(key);
+      }
+    }
+    return false;
+  }
+
+  protected String getStringCode(JSONObject json, String key) {
+    if (json.has(key)) {
+      if (json.get(key) instanceof JSONObject) {
+        return json.getJSONObject(key).getString(CODE);
+      } else {
+        return json.getString(key);
+      }
+    }
+    return null;
+  }
+
+  protected int getIntCode(JSONObject json, String key) {
+    if (json.has(key)) {
+      if (json.get(key) instanceof JSONObject) {
+        return json.getJSONObject(key).getInt(CODE);
+      } else {
+        return json.getInt(key);
+      }
+    }
+    return 0;
   }
 
   protected static String urlEncode(String str) throws UnsupportedEncodingException {

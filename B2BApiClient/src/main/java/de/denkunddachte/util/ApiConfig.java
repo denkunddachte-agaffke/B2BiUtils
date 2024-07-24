@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -29,6 +31,7 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +39,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 
@@ -50,7 +54,6 @@ import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.http.ssl.TrustStrategy;
 
-import de.denkunddachte.util.Password.CryptException;
 import de.denkunddachte.enums.CipherSuite;
 import de.denkunddachte.enums.DocumentStorage;
 import de.denkunddachte.enums.NodePreference;
@@ -63,6 +66,8 @@ import de.denkunddachte.enums.TlsVersion;
 import de.denkunddachte.exception.ApiException;
 import de.denkunddachte.ft.CDNode;
 import de.denkunddachte.ft.CDNode.LogLevel;
+import de.denkunddachte.sfgapi.Validator;
+import de.denkunddachte.util.Password.CryptException;
 
 public class ApiConfig {
 
@@ -151,6 +156,11 @@ public class ApiConfig {
   public static final String          DEFAULT_CONFIG                    = "apiconfig.properties";
   protected static final String       INTERNAL_CONFIG                   = "de/denkunddachte/sfgapi/apiconfig.properties";
 
+  public static final String          API_DRYRUN_PROPERTY               = "apiclient.dryrun";
+  public static final String          API_AUTOFIX_PROPERTY              = "apiclient.autofix";
+  public static final String          API_AUTOFIX_EMAIL_PROPERTY        = "apiclient.autofix.email";
+  public static final String          API_AUTOFIX_EMAIL_TEMPLATE        = "autofixed-by-api@example.com";
+
   private String                      apiBaseURI;
   private String                      wsApiBaseURI;
   private String                      apiUser;
@@ -225,6 +235,9 @@ public class ApiConfig {
   private boolean                     wfdUseApiToSetDefault             = false;
   private boolean                     wfdRefreshWfdCache                = false;
   private String                      user                              = System.getProperty("user.name");
+  private boolean                     dryrun;
+  private boolean                     autofix                           = Boolean.parseBoolean(System.getProperty(API_AUTOFIX_PROPERTY));
+  private String                      autofixEmailTemplate              = API_AUTOFIX_EMAIL_TEMPLATE;
 
   private static ApiConfig            instance;
   private static ApiConfig            defaultInstance;
@@ -240,6 +253,7 @@ public class ApiConfig {
     if (cfg == null && (new File(DEFAULT_CONFIG)).canRead()) {
       cfg = DEFAULT_CONFIG;
     }
+    setDryrun(Boolean.parseBoolean(System.getProperty(API_DRYRUN_PROPERTY)));
     try (InputStream is = (cfg == null ? this.getClass().getClassLoader().getResourceAsStream(INTERNAL_CONFIG) : new FileInputStream(cfg))) {
       Properties p = new Properties();
       p.load(is);
@@ -260,10 +274,6 @@ public class ApiConfig {
       }
     }
     loadMap(System.getProperties());
-
-    if (cacheResults) {
-      cacheResults = cacheDir.isDirectory() || cacheDir.mkdirs();
-    }
   }
 
   public static ApiConfig getInstance() throws ApiException {
@@ -280,7 +290,7 @@ public class ApiConfig {
 
   public static ApiConfig getInstance(Map<String, String> cfg) throws ApiException {
     if (instance == null) {
-      instance = new ApiConfig(null);
+      instance = new ApiConfig(cfg.get("configfile"));
       defaultInstance = instance;
 
       if (cfg != null) {
@@ -340,7 +350,7 @@ public class ApiConfig {
           System.setProperty("javax.net.ssl.trustStorePassword", Password.getCleartext((String) props.get(key)));
           break;
         case USECACHE:
-          cacheResults = Boolean.parseBoolean((String) props.get(key));
+          setCacheResults(Boolean.parseBoolean((String) props.get(key)));
           break;
         case CACHEDIR:
           cacheDir = new File((String) props.get(key));
@@ -528,6 +538,15 @@ public class ApiConfig {
         case WS_BP_NAME:
           wsApiBpName = (String) props.get(key);
           break;
+        case API_DRYRUN_PROPERTY:
+          setDryrun(Boolean.parseBoolean((String) props.get(key)));
+          break;
+        case API_AUTOFIX_PROPERTY:
+          autofix = Boolean.parseBoolean((String) props.get(key));
+          break;
+        case API_AUTOFIX_EMAIL_PROPERTY:
+          autofixEmailTemplate = (String) props.get(key);
+          break;
         default:
           break;
         }
@@ -597,6 +616,21 @@ public class ApiConfig {
     return cacheResults;
   }
 
+  public void setCacheResults(boolean cacheResults) throws ApiException {
+    this.cacheResults = cacheResults;
+    if (cacheResults) {
+      cacheResults = cacheDir.isDirectory() || cacheDir.mkdirs();
+    } else {
+      if (cacheDir != null && cacheDir.isDirectory()) {
+        try (Stream<Path> pathStream = Files.walk(cacheDir.toPath())) {
+          pathStream.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+        } catch (IOException e) {
+          throw new ApiException("Error deleting cache folder " + cacheDir + "!", e);
+        }
+      }
+    }
+  }
+
   public File getCacheDir() {
     return cacheDir;
   }
@@ -610,7 +644,7 @@ public class ApiConfig {
   }
 
   public Set<String> getWsApiList() {
-    Set<String> result = new HashSet<String>(wsApiList.size());
+    Set<String> result = new HashSet<>(wsApiList.size());
     result.addAll(wsApiList);
     return result;
   }
@@ -902,6 +936,34 @@ public class ApiConfig {
 
   public String getUser() {
     return user;
+  }
+
+  public boolean isDryrun() {
+    return dryrun;
+  }
+
+  public void setDryrun(boolean dryrun) throws ApiException {
+    if (dryrun && !this.dryrun) {
+      setCacheResults(false); // force removal of cache dir
+      setCacheResults(true);
+    }
+    this.dryrun = dryrun;
+  }
+
+  public boolean isAutofix() {
+    return autofix;
+  }
+
+  public void setAutofix(boolean autofix) {
+    this.autofix = autofix;
+  }
+
+  public String getAutofixEmailTemplate() {
+    return autofixEmailTemplate;
+  }
+
+  public void setAutofixEmailTemplate(String autofixEmailTemplate) throws ApiException {
+    this.autofixEmailTemplate = Validator.validateEmail(autofixEmailTemplate);
   }
 
   public ApiConfig copy() throws ApiException {

@@ -38,6 +38,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import de.denkunddachte.exception.ApiException;
+import de.denkunddachte.ft.SshKey;
 
 public class SshAuthorizedUserKey extends AbstractSfgKey {
   private final static Logger   LOGGER   = Logger.getLogger(SshAuthorizedUserKey.class.getName());
@@ -49,6 +50,10 @@ public class SshAuthorizedUserKey extends AbstractSfgKey {
 
   public SshAuthorizedUserKey(String keyName, String keyString, boolean keyStatusEnabled) throws InvalidKeyException {
     super(keyName, keyString, keyStatusEnabled);
+  }
+
+  public SshAuthorizedUserKey(String keyName, SshKey sshKey, boolean keyStatusEnabled) throws InvalidKeyException {
+    super(keyName, sshKey, keyStatusEnabled);
   }
 
   private SshAuthorizedUserKey(JSONObject json) throws JSONException, ApiException {
